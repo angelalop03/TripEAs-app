@@ -1,40 +1,53 @@
-// Pantalla de registro — valida localmente y llama a POST /api/auth/registro.
-// Si el backend devuelve token, inicia sesión directamente; si no, manda a login.
+// Pantalla de registro — medidas replicadas 1:1 del diseño de Figma (frame de
+// referencia 393x852, escaladas al ancho real del dispositivo). Valida
+// localmente y llama a POST /api/auth/registro; si el backend devuelve
+// token, inicia sesión directamente, si no, manda a login.
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
-  StyleSheet,
+  ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
 import { Logo } from '@/components/Logo';
-import { API_URL } from '@/constants/Api';
+import { esErrorDeConexion, fetchApi, MENSAJE_ERROR_CONEXION, mensajeDeError } from '@/constants/Api';
 import { Colors } from '@/constants/Colors';
-import { useAuth } from '@/hooks/useAuth';
+import { normalizarUsuario, useAuth } from '@/hooks/useAuth';
 
+const FRAME_WIDTH = 393;
+const FRAME_HEIGHT = 852;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const COLOR_TITULO = '#145C80';
+const COLOR_LABEL = '#216489';
+const COLOR_PLACEHOLDER = 'rgba(107, 123, 114, 0.5)';
+const COLOR_FOOTER = '#3B4A43';
+const COLOR_BORDE_CARD = '#D4ECF0';
 
 export default function SignupScreen() {
   const { login } = useAuth();
+  const { width } = useWindowDimensions();
+  const e = (valor: number) => (valor / FRAME_WIDTH) * width;
 
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
   const [error, setError] = useState('');
+  const [errorDeConexion, setErrorDeConexion] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const validar = () => {
     if (nombre.trim().length === 0) return 'Introduce tu nombre';
     if (!EMAIL_REGEX.test(email.trim())) return 'Introduce un email válido';
-    if (password.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
+    if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
     if (password !== confirmarPassword) return 'Las contraseñas no coinciden';
     return '';
   };
@@ -42,232 +55,286 @@ export default function SignupScreen() {
   const handleSignup = async () => {
     const errorValidacion = validar();
     if (errorValidacion) {
+      setErrorDeConexion(false);
       setError(errorValidacion);
       return;
     }
 
     setError('');
+    setErrorDeConexion(false);
     setIsLoading(true);
     try {
-      const respuesta = await fetch(`${API_URL}/auth/registro`, {
+      const respuesta = await fetchApi('/auth/registro', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre: nombre.trim(), email: email.trim(), password }),
       });
       const datos = await respuesta.json();
 
       if (!respuesta.ok) {
-        setError(datos?.mensaje || datos?.error || 'No se pudo crear la cuenta');
+        setError(mensajeDeError(respuesta.status, datos));
         return;
       }
 
-      const token = datos.access_token ?? datos.token;
-      const usuario = datos.usuario ?? datos.user;
+      const token = datos.session?.access_token;
 
-      if (token && usuario) {
-        await login(token, usuario);
+      if (token) {
+        await login(token, normalizarUsuario(datos.usuario ?? {}));
       } else {
+        // Supabase puede exigir confirmación por email antes de dar sesión.
         router.replace('/login');
       }
-    } catch {
-      setError('No se pudo conectar con el servidor');
+    } catch (err) {
+      if (esErrorDeConexion(err)) {
+        setErrorDeConexion(true);
+        setError(MENSAJE_ERROR_CONEXION);
+      } else {
+        setError('Ha ocurrido un error. Inténtalo de nuevo.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const campoEstilo = {
+    width: '100%' as const,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    paddingHorizontal: e(24),
+    paddingVertical: e(17),
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: e(16),
+    color: Colors.azulProfundo,
+  };
+
+  const etiquetaEstilo = {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: e(12),
+    letterSpacing: e(0.6),
+    color: COLOR_LABEL,
+  };
+
+  const azulSuave = (alpha: number) => `rgba(0, 83, 119, ${alpha})`;
+
   const social = (nombreProveedor: string) =>
     Alert.alert('Próximamente', `Registro con ${nombreProveedor} aún no está disponible`);
 
   return (
-    <View style={styles.container}>
-      <Logo size={30} />
-      <Text style={styles.tagline}>VIAJA, ORGANIZA, COMPARTE, DISFRUTA</Text>
-
-      <Image
-        source={require('@/assets/images/capibara.png')}
-        style={styles.capibara}
-        resizeMode="contain"
-      />
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitulo}>Create your account</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Name"
-          placeholderTextColor={Colors.azulProfundo}
-          value={nombre}
-          onChangeText={setNombre}
-          textAlign="center"
+    <ScrollView
+      style={{ flex: 1, backgroundColor: Colors.amarilloFigma }}
+      contentContainerStyle={{ minHeight: e(FRAME_HEIGHT) }}
+      keyboardShouldPersistTaps="handled">
+      <View style={{ position: 'absolute', top: e(45), left: 0, right: 0, alignItems: 'center' }}>
+        <Logo
+          size={e(59.33)}
+          fontFamily="Poppins_700Bold"
+          style={{
+            lineHeight: e(89),
+            textShadowColor: 'rgba(0,0,0,0.25)',
+            textShadowOffset: { width: 0, height: e(5.93) },
+            textShadowRadius: e(5.93),
+          }}
         />
-        <TextInput
-          style={styles.input}
-          placeholder="example@gmail.com"
-          placeholderTextColor={Colors.azulProfundo}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          textAlign="center"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={Colors.azulProfundo}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          textAlign="center"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Confirm your password"
-          placeholderTextColor={Colors.azulProfundo}
-          value={confirmarPassword}
-          onChangeText={setConfirmarPassword}
-          secureTextEntry
-          textAlign="center"
-        />
+      </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Text
+        style={{
+          position: 'absolute',
+          top: e(145),
+          left: 0,
+          right: 0,
+          textAlign: 'center',
+          fontFamily: 'Poppins_500Medium',
+          fontSize: e(14),
+          lineHeight: e(21),
+          color: Colors.azulProfundo,
+          textShadowColor: 'rgba(0,0,0,0.25)',
+          textShadowOffset: { width: 0, height: e(4) },
+          textShadowRadius: e(4),
+        }}>
+        VIAJA, ORGANIZA, COMPARTE, DISFRUTA
+      </Text>
 
-        <View style={styles.filaLink}>
-          <Text style={styles.textoMuted}>Already have an account? </Text>
-          <Link href="/login">
-            <Text style={styles.textoLink}>Log in</Text>
-          </Link>
-        </View>
+      <View style={{ position: 'absolute', left: e(24), top: e(199), width: e(342) }}>
+        <View
+          style={{
+            width: '100%',
+            backgroundColor: Colors.celesteAgua,
+            borderWidth: 1,
+            borderColor: COLOR_BORDE_CARD,
+            borderRadius: e(32),
+            padding: e(32),
+            gap: e(16),
+          }}>
+          <Text
+            style={{
+              fontFamily: 'PlusJakartaSans_700Bold',
+              fontSize: e(22),
+              lineHeight: e(28),
+              color: COLOR_TITULO,
+            }}>
+            Create Account
+          </Text>
 
-        <Pressable
-          style={[styles.botonPrimario, isLoading && styles.botonDeshabilitado]}
-          onPress={handleSignup}
-          disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color={Colors.blancoHueso} />
-          ) : (
-            <Text style={styles.textoBotonPrimario}>Sign Up</Text>
-          )}
-        </Pressable>
+          <View style={{ width: '100%', gap: e(16) }}>
+            <View style={{ width: '100%', gap: e(8) }}>
+              <Text style={etiquetaEstilo}>FULL NAME</Text>
+              <TextInput
+                style={campoEstilo}
+                placeholder="Enter your name"
+                placeholderTextColor={COLOR_PLACEHOLDER}
+                value={nombre}
+                onChangeText={setNombre}
+              />
+            </View>
 
-        <Text style={styles.textoContinuar}>Or continue with</Text>
+            <View style={{ width: '100%', gap: e(8) }}>
+              <Text style={etiquetaEstilo}>EMAIL ADDRESS</Text>
+              <TextInput
+                style={campoEstilo}
+                placeholder="you@example.com"
+                placeholderTextColor={COLOR_PLACEHOLDER}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
 
-        <View style={styles.filaSocial}>
-          <Pressable style={styles.botonSocial} onPress={() => social('Google')}>
-            <Ionicons name="logo-google" size={18} color={Colors.azulProfundo} />
-          </Pressable>
-          <Pressable style={styles.botonSocial} onPress={() => social('Apple')}>
-            <Ionicons name="logo-apple" size={18} color={Colors.azulProfundo} />
-          </Pressable>
+            <View style={{ width: '100%', gap: e(8) }}>
+              <Text style={etiquetaEstilo}>PASSWORD</Text>
+              <TextInput
+                style={campoEstilo}
+                placeholder="Min. 8 characters"
+                placeholderTextColor={COLOR_PLACEHOLDER}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <View style={{ width: '100%', gap: e(8) }}>
+              <Text style={etiquetaEstilo}>CONFIRM PASSWORD</Text>
+              <TextInput
+                style={campoEstilo}
+                placeholder="Repeat password"
+                placeholderTextColor={COLOR_PLACEHOLDER}
+                value={confirmarPassword}
+                onChangeText={setConfirmarPassword}
+                secureTextEntry
+              />
+            </View>
+
+            {error ? (
+              <Text style={{ color: Colors.rojoSuave, fontSize: e(12), textAlign: 'center', width: '100%' }}>{error}</Text>
+            ) : null}
+
+            {errorDeConexion ? (
+              <Pressable
+                style={{ alignSelf: 'center', paddingVertical: e(4), paddingHorizontal: e(12) }}
+                onPress={handleSignup}>
+                <Text style={{ color: Colors.turquesa, fontSize: e(13), fontWeight: '700' }}>Reintentar</Text>
+              </Pressable>
+            ) : null}
+
+            <Pressable
+              style={{
+                width: '100%',
+                height: e(56),
+                marginTop: e(16),
+                borderRadius: 999,
+                backgroundColor: Colors.turquesa,
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: e(8),
+                opacity: isLoading ? 0.7 : 1,
+                shadowColor: '#000000',
+                shadowOpacity: 0.05,
+                shadowOffset: { width: 0, height: 1 },
+                shadowRadius: 2,
+                elevation: 2,
+              }}
+              onPress={handleSignup}
+              disabled={isLoading}>
+              {isLoading ? (
+                <ActivityIndicator color={Colors.blancoHueso} />
+              ) : (
+                <>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(22), lineHeight: e(28), color: Colors.blancoHueso }}>
+                    Sign Up
+                  </Text>
+                  <Ionicons name="arrow-forward" size={e(13.33)} color={Colors.blancoHueso} />
+                </>
+              )}
+            </Pressable>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: e(16), width: '100%' }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: azulSuave(0.1) }} />
+              <Text
+                style={{
+                  fontFamily: 'PlusJakartaSans_400Regular',
+                  fontSize: e(12),
+                  color: azulSuave(0.4),
+                  textTransform: 'uppercase',
+                }}>
+                Or continue with
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: azulSuave(0.1) }} />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: e(16), width: '100%' }}>
+              <Pressable
+                style={{
+                  flex: 1,
+                  height: e(50),
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: e(8),
+                  backgroundColor: '#FFFFFF',
+                  borderWidth: 1,
+                  borderColor: azulSuave(0.05),
+                  borderRadius: 999,
+                }}
+                onPress={() => social('Google')}>
+                <Ionicons name="logo-google" size={e(16)} color={Colors.azulProfundo} />
+                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: e(12), letterSpacing: e(0.6), color: Colors.azulProfundo }}>
+                  Google
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={{
+                  flex: 1,
+                  height: e(50),
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: e(8),
+                  backgroundColor: '#FFFFFF',
+                  borderWidth: 1,
+                  borderColor: azulSuave(0.05),
+                  borderRadius: 999,
+                }}
+                onPress={() => social('Apple')}>
+                <Ionicons name="logo-apple" size={e(16)} color={Colors.azulProfundo} />
+                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: e(12), letterSpacing: e(0.6), color: Colors.azulProfundo }}>
+                  Apple
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'center', paddingTop: e(16) }}>
+            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(14), color: COLOR_FOOTER }}>
+              Already have an account?{' '}
+            </Text>
+            <Link href="/login">
+              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(14), color: Colors.turquesa }}>Log In</Text>
+            </Link>
+          </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.amarillo,
-    alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 24,
-  },
-  tagline: {
-    marginTop: 4,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1,
-    color: Colors.azulProfundo,
-    textAlign: 'center',
-  },
-  capibara: {
-    width: 90,
-    height: 90,
-    marginTop: 14,
-    marginBottom: -18,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: Colors.blancoHueso,
-    borderRadius: 28,
-    padding: 22,
-    elevation: 3,
-  },
-  cardTitulo: {
-    color: Colors.azulProfundo,
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 14,
-  },
-  input: {
-    backgroundColor: Colors.celesteAgua,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(14, 153, 176, 0.15)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
-    color: Colors.azulProfundo,
-    fontSize: 14,
-  },
-  error: {
-    color: Colors.rojoSuave,
-    marginBottom: 8,
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  filaLink: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginBottom: 14,
-  },
-  textoMuted: {
-    color: Colors.azulProfundo,
-    fontSize: 11,
-    opacity: 0.75,
-  },
-  textoLink: {
-    color: Colors.turquesa,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  botonPrimario: {
-    backgroundColor: Colors.turquesa,
-    borderRadius: 25,
-    paddingVertical: 11,
-    paddingHorizontal: 44,
-    alignSelf: 'center',
-  },
-  botonDeshabilitado: {
-    opacity: 0.7,
-  },
-  textoBotonPrimario: {
-    color: Colors.blancoHueso,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  textoContinuar: {
-    textAlign: 'center',
-    color: Colors.azulProfundo,
-    opacity: 0.6,
-    fontSize: 11,
-    marginTop: 16,
-    marginBottom: 10,
-  },
-  filaSocial: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  botonSocial: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1,
-    borderColor: Colors.celesteAgua,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

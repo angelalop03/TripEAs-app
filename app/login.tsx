@@ -18,9 +18,9 @@ import {
 } from 'react-native';
 
 import { Logo } from '@/components/Logo';
-import { API_URL } from '@/constants/Api';
+import { esErrorDeConexion, fetchApi, MENSAJE_ERROR_CONEXION, mensajeDeError } from '@/constants/Api';
 import { Colors } from '@/constants/Colors';
-import { useAuth } from '@/hooks/useAuth';
+import { normalizarUsuario, useAuth } from '@/hooks/useAuth';
 
 const FRAME_WIDTH = 393;
 const FRAME_HEIGHT = 923;
@@ -35,6 +35,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState('');
+  const [errorDeConexion, setErrorDeConexion] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const validar = () => {
@@ -46,28 +47,39 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     const errorValidacion = validar();
     if (errorValidacion) {
+      setErrorDeConexion(false);
       setError(errorValidacion);
       return;
     }
 
     setError('');
+    setErrorDeConexion(false);
     setIsLoading(true);
     try {
-      const respuesta = await fetch(`${API_URL}/auth/login`, {
+      const respuesta = await fetchApi('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
       });
       const datos = await respuesta.json();
 
       if (!respuesta.ok) {
-        setError(datos?.mensaje || datos?.error || 'No se pudo iniciar sesión');
+        setError(mensajeDeError(respuesta.status, datos));
         return;
       }
 
-      await login(datos.access_token ?? datos.token, datos.usuario ?? datos.user);
-    } catch {
-      setError('No se pudo conectar con el servidor');
+      const token = datos.session?.access_token;
+      if (!token) {
+        setError('No se pudo iniciar sesión');
+        return;
+      }
+      await login(token, normalizarUsuario(datos.usuario ?? {}));
+    } catch (err) {
+      if (esErrorDeConexion(err)) {
+        setErrorDeConexion(true);
+        setError(MENSAJE_ERROR_CONEXION);
+      } else {
+        setError('Ha ocurrido un error. Inténtalo de nuevo.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -223,6 +235,14 @@ export default function LoginScreen() {
 
           {error ? (
             <Text style={{ color: Colors.rojoSuave, fontSize: e(12), textAlign: 'center', width: '100%' }}>{error}</Text>
+          ) : null}
+
+          {errorDeConexion ? (
+            <Pressable
+              style={{ alignSelf: 'center', paddingVertical: e(4), paddingHorizontal: e(12) }}
+              onPress={handleLogin}>
+              <Text style={{ color: Colors.turquesa, fontSize: e(13), fontWeight: '700' }}>Reintentar</Text>
+            </Pressable>
           ) : null}
 
           {/* Botón login */}

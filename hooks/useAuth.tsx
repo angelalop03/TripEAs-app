@@ -22,6 +22,18 @@ export async function borrarSesion(): Promise<void> {
   await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
 }
 
+// El backend no devuelve el mismo shape de "usuario" en login (usuario de
+// Supabase Auth: id, email, sin nombre) que en registro (fila de la tabla
+// "usuarios": id_usuario, nombre, email). Esto normaliza ambos a Usuario.
+export function normalizarUsuario(datos: Record<string, unknown>): Usuario {
+  const usuarioMetadata = datos.user_metadata as Record<string, unknown> | undefined;
+  return {
+    id: String(datos.id ?? datos.id_usuario ?? ''),
+    nombre: String(datos.nombre ?? usuarioMetadata?.nombre ?? datos.email ?? 'Usuario'),
+    email: String(datos.email ?? ''),
+  };
+}
+
 interface AuthContextValue {
   token: string | null;
   usuario: Usuario | null;

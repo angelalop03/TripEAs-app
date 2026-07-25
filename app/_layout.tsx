@@ -6,7 +6,7 @@ import {
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { Poppins_500Medium, Poppins_700Bold } from '@expo-google-fonts/poppins';
+import { Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -44,6 +44,7 @@ function RootNavigator() {
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Poppins_700Bold,
+    Poppins_600SemiBold,
     Poppins_500Medium,
     PlusJakartaSans_400Regular,
     PlusJakartaSans_600SemiBold,

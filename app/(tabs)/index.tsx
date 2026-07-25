@@ -1,98 +1,463 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+// Pantalla principal tras el login — lista los viajes del usuario (GET
+// /api/viajes/mis-viajes) replicando el diseño de Figma (frame de referencia
+// 393px de ancho, escalado al dispositivo). FAB inferior que expande dos
+// botones (crear / unirse a un viaje).
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { CrearViajeModal } from '@/components/CrearViajeModal';
+import { SidebarMenu } from '@/components/SidebarMenu';
+import { UnirseViajeModal } from '@/components/UnirseViajeModal';
+import { esErrorDeConexion, fetchConToken, MENSAJE_ERROR_CONEXION } from '@/constants/Api';
+import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/hooks/useAuth';
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+const FRAME_WIDTH = 393;
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+const COLOR_TITULO = '#1A1C1A';
+const COLOR_SUBTITULO = '#6B7B72';
+const COLOR_ICONO = '#216489';
+const COLOR_FECHA = '#3B4A43';
+
+interface Viaje {
+  id_viaje: string;
+  nombre_viaje: string;
+  descripcion: string | null;
+  codigo_invitacion: string;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+  url_portada: string | null;
+  creado_en: string;
+  rol: string;
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+function formatearRango(inicio: string | null, fin: string | null) {
+  if (!inicio) return 'Fechas por definir';
+  const dIni = new Date(inicio);
+  const inicioStr = dIni.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+  if (!fin) return inicioStr;
+  const dFin = new Date(fin);
+  const finStr = dFin.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  return `${inicioStr} - ${finStr}`;
+}
+
+export default function HomeScreen() {
+  const { usuario } = useAuth();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const e = (valor: number) => (valor / FRAME_WIDTH) * width;
+
+  const [viajes, setViajes] = useState<Viaje[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [errorConexion, setErrorConexion] = useState(false);
+  const [fabExpandido, setFabExpandido] = useState(false);
+  const [modalCrear, setModalCrear] = useState(false);
+  const [modalUnirse, setModalUnirse] = useState(false);
+  const [sidebarAbierto, setSidebarAbierto] = useState(false);
+
+  const cargarViajes = useCallback(async (mostrarSpinner = false) => {
+    if (mostrarSpinner) setIsRefreshing(true);
+    try {
+      const respuesta = await fetchConToken('/viajes/mis-viajes');
+      const datos = await respuesta.json();
+      if (respuesta.ok) {
+        setViajes(datos.viajes ?? []);
+        setErrorConexion(false);
+      }
+    } catch (err) {
+      // Timeout/sin conexión: NO tocamos el token ni la sesión, solo lo
+      // avisamos y dejamos la última lista de viajes cargada tal cual estaba.
+      if (esErrorDeConexion(err)) {
+        setErrorConexion(true);
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarViajes();
+  }, [cargarViajes]);
+
+  const viajesOrdenados = useMemo(
+    () =>
+      [...viajes].sort((a, b) => {
+        if (!a.fecha_inicio) return 1;
+        if (!b.fecha_inicio) return -1;
+        return new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime();
+      }),
+    [viajes]
+  );
+
+  const idProximoViaje = useMemo(() => {
+    const hoy = new Date();
+    const futuros = viajesOrdenados.filter((v) => v.fecha_inicio && new Date(v.fecha_inicio) >= hoy);
+    return futuros[0]?.id_viaje ?? null;
+  }, [viajesOrdenados]);
+
+  const abrirDetalle = (viaje: Viaje) =>
+    router.push({
+      pathname: '/viaje/[id]',
+      params: {
+        id: viaje.id_viaje,
+        nombre: viaje.nombre_viaje,
+        fechaInicio: viaje.fecha_inicio ?? '',
+        fechaFin: viaje.fecha_fin ?? '',
+        urlPortada: viaje.url_portada ?? '',
+      },
+    });
+
+  const iniciales = (usuario?.nombre ?? 'U').trim().charAt(0).toUpperCase();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: Colors.amarilloFigma }}>
+      {/* Navbar */}
+      <View
+        style={{
+          flexDirection: 'row',
+          paddingTop: insets.top + e(16),
+          paddingHorizontal: e(13),
+        }}>
+        <Pressable
+          onPress={() => setSidebarAbierto(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: e(12),
+            backgroundColor: '#FFFFFF',
+            borderRadius: 8,
+            paddingHorizontal: e(11),
+            paddingVertical: e(5),
+          }}>
+          <View
+            style={{
+              width: e(26),
+              height: e(26),
+              borderRadius: e(26),
+              backgroundColor: Colors.celesteAgua,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            <Text style={{ color: Colors.azulProfundo, fontSize: e(12), fontWeight: '700' }}>{iniciales}</Text>
+          </View>
+          <Text style={{ fontFamily: 'Poppins_500Medium', fontWeight: '600', fontSize: e(14), color: Colors.turquesa }}>
+            User
+          </Text>
+          <Ionicons name="chevron-down" size={e(14)} color={Colors.turquesa} />
+        </Pressable>
+      </View>
+
+      {/* Contenido */}
+      {isLoading ? (
+        errorConexion ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: e(32) }}>
+            <Text style={{ color: Colors.rojoSuave, fontSize: e(14), textAlign: 'center', marginBottom: e(12) }}>
+              {MENSAJE_ERROR_CONEXION}
+            </Text>
+            <Pressable
+              style={{ backgroundColor: Colors.turquesa, borderRadius: 25, paddingVertical: e(12), paddingHorizontal: e(32) }}
+              onPress={() => {
+                setIsLoading(true);
+                cargarViajes();
+              }}>
+              <Text style={{ color: Colors.blancoHueso, fontWeight: '600', fontSize: e(14) }}>Reintentar</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color={Colors.turquesa} size="large" />
+          </View>
+        )
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: e(24), paddingTop: e(32), paddingBottom: insets.bottom + e(160) }}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => cargarViajes(true)} tintColor={Colors.turquesa} />}>
+          {errorConexion && (
+            <View
+              style={{
+                width: '100%',
+                backgroundColor: 'rgba(255, 138, 128, 0.15)',
+                borderRadius: e(16),
+                paddingVertical: e(10),
+                paddingHorizontal: e(14),
+                marginBottom: e(16),
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: e(8),
+              }}>
+              <Text style={{ color: Colors.rojoSuave, fontSize: e(12), flex: 1 }}>{MENSAJE_ERROR_CONEXION}</Text>
+              <Pressable onPress={() => cargarViajes(true)}>
+                <Text style={{ color: Colors.rojoSuave, fontSize: e(12), fontWeight: '700' }}>Reintentar</Text>
+              </Pressable>
+            </View>
+          )}
+          <Text
+            style={{
+              fontFamily: 'PlusJakartaSans_700Bold',
+              fontSize: e(28),
+              letterSpacing: e(-0.56),
+              color: COLOR_TITULO,
+              marginBottom: e(8),
+            }}>
+            Mis viajes
+          </Text>
+          <Text
+            style={{
+              fontFamily: 'PlusJakartaSans_400Regular',
+              fontSize: e(14),
+              color: COLOR_SUBTITULO,
+              marginBottom: e(32),
+            }}>
+            Organiza tus próximas aventuras en grupo.
+          </Text>
+
+          {viajesOrdenados.length === 0 ? (
+            <View
+              style={{
+                width: '100%',
+                borderWidth: 2,
+                borderStyle: 'dashed',
+                borderColor: '#B9CBC1',
+                borderRadius: e(32),
+                paddingVertical: e(40),
+                paddingHorizontal: e(24),
+                alignItems: 'center',
+              }}>
+              <Image
+                source={require('@/assets/images/capibara.png')}
+                resizeMode="contain"
+                style={{ width: e(128), height: e(128), marginBottom: e(16) }}
+              />
+              <Text
+                style={{
+                  fontFamily: 'PlusJakartaSans_700Bold',
+                  fontSize: e(22),
+                  color: COLOR_FECHA,
+                  textAlign: 'center',
+                  marginBottom: e(8),
+                }}>
+                No hay viajes
+              </Text>
+              <Text
+                style={{
+                  fontFamily: 'PlusJakartaSans_400Regular',
+                  fontSize: e(14),
+                  color: COLOR_SUBTITULO,
+                  textAlign: 'center',
+                  marginBottom: e(20),
+                }}>
+                ¿Crear uno? Invita a tus amigos y deja que Capi te ayude con el estrés.
+              </Text>
+              <Pressable
+                style={{
+                  backgroundColor: Colors.turquesa,
+                  borderRadius: 25,
+                  paddingVertical: e(14),
+                  paddingHorizontal: e(36),
+                }}
+                onPress={() => setModalCrear(true)}>
+                <Text style={{ color: Colors.blancoHueso, fontWeight: '600', fontSize: e(15) }}>Crear viaje</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <View style={{ gap: e(16) }}>
+                {viajesOrdenados.map((viaje) => {
+                  const destacado = viaje.id_viaje === idProximoViaje;
+                  return (
+                    <Pressable
+                      key={viaje.id_viaje}
+                      onPress={() => abrirDetalle(viaje)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: destacado ? Colors.amarillo : Colors.celesteAgua,
+                        borderWidth: 1,
+                        borderColor: 'rgba(0, 83, 119, 0.05)',
+                        borderRadius: e(32),
+                        padding: e(24),
+                        gap: e(16),
+                        overflow: 'hidden',
+                      }}>
+                      {destacado && (
+                        <View
+                          style={{
+                            alignSelf: 'flex-start',
+                            backgroundColor: 'rgba(255,255,255,0.5)',
+                            borderRadius: 999,
+                            paddingHorizontal: e(12),
+                            paddingVertical: e(4),
+                          }}>
+                          <Text
+                            style={{
+                              fontFamily: 'PlusJakartaSans_600SemiBold',
+                              fontSize: e(12),
+                              letterSpacing: e(0.6),
+                              color: COLOR_ICONO,
+                            }}>
+                            PRÓXIMO
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text
+                          style={{
+                            fontFamily: 'PlusJakartaSans_700Bold',
+                            fontSize: e(22),
+                            color: COLOR_TITULO,
+                            flex: 1,
+                          }}
+                          numberOfLines={1}>
+                          {viaje.nombre_viaje}
+                        </Text>
+                        <Ionicons name="airplane-outline" size={e(20)} color={COLOR_ICONO} />
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: e(8) }}>
+                        <Ionicons name="calendar-outline" size={e(14)} color={COLOR_ICONO} />
+                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(14), color: COLOR_FECHA }}>
+                          {formatearRango(viaje.fecha_inicio, viaje.fecha_fin)}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View
+                style={{
+                  width: '100%',
+                  borderWidth: 2,
+                  borderStyle: 'dashed',
+                  borderColor: '#B9CBC1',
+                  borderRadius: e(32),
+                  paddingVertical: e(24),
+                  paddingHorizontal: e(24),
+                  alignItems: 'center',
+                  marginTop: e(32),
+                }}>
+                <Image
+                  source={require('@/assets/images/capibara.png')}
+                  resizeMode="contain"
+                  style={{ width: e(128), height: e(128), marginBottom: e(16) }}
+                />
+                <Text
+                  style={{
+                    fontFamily: 'PlusJakartaSans_700Bold',
+                    fontSize: e(22),
+                    color: COLOR_FECHA,
+                    textAlign: 'center',
+                    marginBottom: e(8),
+                  }}>
+                  ¿Planeando algo nuevo?
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: 'PlusJakartaSans_400Regular',
+                    fontSize: e(14),
+                    color: COLOR_SUBTITULO,
+                    textAlign: 'center',
+                  }}>
+                  Invita a tus amigos y deja que Capi te ayude con el estrés.
+                </Text>
+              </View>
+            </>
+          )}
+        </ScrollView>
+      )}
+
+      {/* FAB */}
+      {fabExpandido && (
+        <Pressable
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          onPress={() => setFabExpandido(false)}
+        />
+      )}
+      <View style={{ position: 'absolute', bottom: insets.bottom + e(60), left: 0, right: 0, alignItems: 'center' }}>
+        {fabExpandido && (
+          <View style={{ gap: e(12), marginBottom: e(16), alignItems: 'center' }}>
+            <Pressable
+              style={{
+                backgroundColor: Colors.turquesa,
+                borderRadius: 8,
+                paddingVertical: e(10),
+                paddingHorizontal: e(22),
+              }}
+              onPress={() => {
+                setFabExpandido(false);
+                setModalCrear(true);
+              }}>
+              <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: e(16), color: '#FFFFFF' }}>Crear grupo</Text>
+            </Pressable>
+
+            <Pressable
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderWidth: 3,
+                borderColor: Colors.turquesa,
+                borderRadius: 8,
+                paddingVertical: e(10),
+                paddingHorizontal: e(22),
+              }}
+              onPress={() => {
+                setFabExpandido(false);
+                setModalUnirse(true);
+              }}>
+              <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: e(16), color: Colors.turquesa }}>Unirse a viaje</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <Pressable
+          style={{
+            width: e(52),
+            height: e(52),
+            borderRadius: e(52),
+            backgroundColor: Colors.turquesa,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#95D0F8',
+            shadowOpacity: 1,
+            shadowOffset: { width: 0, height: 3 },
+            shadowRadius: 6,
+            elevation: 6,
+          }}
+          onPress={() => setFabExpandido((v) => !v)}>
+          <Ionicons name={fabExpandido ? 'close' : 'add'} size={e(24)} color="#FFFFFF" />
+        </Pressable>
+      </View>
+
+      <CrearViajeModal
+        visible={modalCrear}
+        onClose={() => setModalCrear(false)}
+        onCreado={() => cargarViajes(true)}
+      />
+      <UnirseViajeModal
+        visible={modalUnirse}
+        onClose={() => setModalUnirse(false)}
+        onUnido={() => cargarViajes(true)}
+        onCrearOtro={() => {
+          setModalUnirse(false);
+          setModalCrear(true);
+        }}
+      />
+
+      <SidebarMenu visible={sidebarAbierto} onClose={() => setSidebarAbierto(false)} />
+    </View>
+  );
+}
