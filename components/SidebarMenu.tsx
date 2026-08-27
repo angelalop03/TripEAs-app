@@ -3,7 +3,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Animated, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Image, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/Colors';
@@ -37,9 +37,9 @@ function ItemMenu({
         alignItems: 'center',
         gap: 12,
         width: '100%',
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        borderRadius: 8,
+        paddingVertical: 11,
+        paddingHorizontal: 14,
+        borderRadius: 14,
         backgroundColor: pressed ? Colors.celesteAgua : 'transparent',
       })}>
       <Ionicons name={icono} size={20} color={color ?? '#030723'} />
@@ -77,28 +77,37 @@ export function SidebarMenu({ visible, onClose }: Props) {
             width: anchoDrawer,
             height: '100%',
             backgroundColor: '#FFFFFF',
-            borderRightWidth: 1,
-            borderRightColor: 'rgba(0,0,0,0.1)',
+            borderTopRightRadius: 28,
+            borderBottomRightRadius: 28,
             paddingTop: insets.top + 24,
             paddingHorizontal: 24,
             paddingBottom: insets.bottom + 24,
             gap: 24,
             transform: [{ translateX: traslacion }],
+            shadowColor: '#000000',
+            shadowOpacity: 0.15,
+            shadowOffset: { width: 6, height: 0 },
+            shadowRadius: 20,
+            elevation: 12,
           }}>
           {/* Perfil */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: Colors.celesteAgua,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              <Text style={{ color: Colors.azulProfundo, fontSize: 18, fontWeight: '700' }}>{iniciales}</Text>
-            </View>
-            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.turquesa }}>
+            {usuario?.url_foto_perfil ? (
+              <Image source={{ uri: usuario.url_foto_perfil }} style={{ width: 44, height: 44, borderRadius: 22 }} resizeMode="cover" />
+            ) : (
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: Colors.celesteAgua,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Text style={{ color: Colors.azulProfundo, fontSize: 18, fontWeight: '700' }}>{iniciales}</Text>
+              </View>
+            )}
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.turquesa }} numberOfLines={1}>
               {usuario?.nombre ?? 'User'}
             </Text>
           </View>

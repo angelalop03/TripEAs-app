@@ -164,6 +164,11 @@ export default function SignupScreen() {
             borderRadius: e(32),
             padding: e(32),
             gap: e(16),
+            shadowColor: Colors.azulProfundo,
+            shadowOpacity: 0.05,
+            shadowOffset: { width: 0, height: e(4) },
+            shadowRadius: e(20),
+            elevation: 3,
           }}>
           <Text
             style={{
@@ -249,11 +254,11 @@ export default function SignupScreen() {
                 alignItems: 'center',
                 gap: e(8),
                 opacity: isLoading ? 0.7 : 1,
-                shadowColor: '#000000',
-                shadowOpacity: 0.05,
-                shadowOffset: { width: 0, height: 1 },
-                shadowRadius: 2,
-                elevation: 2,
+                shadowColor: Colors.turquesa,
+                shadowOpacity: 0.2,
+                shadowOffset: { width: 0, height: e(10) },
+                shadowRadius: e(15),
+                elevation: 6,
               }}
               onPress={handleSignup}
               disabled={isLoading}>

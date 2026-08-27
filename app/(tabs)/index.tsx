@@ -25,6 +25,7 @@ import { SidebarMenu } from '@/components/SidebarMenu';
 import { UnirseViajeModal } from '@/components/UnirseViajeModal';
 import { esErrorDeConexion, fetchConToken, MENSAJE_ERROR_CONEXION } from '@/constants/Api';
 import { Colors } from '@/constants/Colors';
+import { SOMBRA_TARJETA } from '@/constants/Estilos';
 import { useAuth } from '@/hooks/useAuth';
 
 const FRAME_WIDTH = 393;
@@ -57,7 +58,7 @@ function formatearRango(inicio: string | null, fin: string | null) {
 }
 
 export default function HomeScreen() {
-  const { usuario } = useAuth();
+  const { usuario, actualizarUsuario } = useAuth();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const e = (valor: number) => (valor / FRAME_WIDTH) * width;
@@ -114,6 +115,24 @@ export default function HomeScreen() {
     cargarViajes();
   }, [cargarViajes]);
 
+  // Sesiones antiguas se quedaron con el email guardado como "nombre" (bug ya
+  // arreglado en el backend de /auth/login), y sesiones ya abiertas no lo
+  // notan solas porque el usuario queda cacheado en AsyncStorage. Al entrar
+  // a Home refrescamos el perfil real una vez, así se autocorrige sin tener
+  // que cerrar sesión.
+  useEffect(() => {
+    fetchConToken('/usuarios/perfil')
+      .then((respuesta) => respuesta.json().then((datos) => ({ respuesta, datos })))
+      .then(({ respuesta, datos }) => {
+        if (respuesta.ok && datos.usuario) {
+          actualizarUsuario({ nombre: datos.usuario.nombre, url_foto_perfil: datos.usuario.url_foto_perfil });
+        }
+      })
+      .catch(() => {
+        // Sin conexión: no pasa nada, se queda con lo que ya había en caché.
+      });
+  }, [actualizarUsuario]);
+
   const viajesOrdenados = useMemo(
     () =>
       [...viajes].sort((a, b) => {
@@ -158,25 +177,30 @@ export default function HomeScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: e(12),
+            gap: e(10),
             backgroundColor: '#FFFFFF',
-            borderRadius: 8,
-            paddingHorizontal: e(11),
-            paddingVertical: e(5),
+            borderRadius: 999,
+            paddingHorizontal: e(10),
+            paddingVertical: e(6),
+            ...SOMBRA_TARJETA,
           }}>
-          <View
-            style={{
-              width: e(26),
-              height: e(26),
-              borderRadius: e(26),
-              backgroundColor: Colors.celesteAgua,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            <Text style={{ color: Colors.azulProfundo, fontSize: e(12), fontWeight: '700' }}>{iniciales}</Text>
-          </View>
-          <Text style={{ fontFamily: 'Poppins_500Medium', fontWeight: '600', fontSize: e(14), color: Colors.turquesa }}>
-            User
+          {usuario?.url_foto_perfil ? (
+            <Image source={{ uri: usuario.url_foto_perfil }} style={{ width: e(26), height: e(26), borderRadius: e(26) }} resizeMode="cover" />
+          ) : (
+            <View
+              style={{
+                width: e(26),
+                height: e(26),
+                borderRadius: e(26),
+                backgroundColor: Colors.celesteAgua,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Text style={{ color: Colors.azulProfundo, fontSize: e(12), fontWeight: '700' }}>{iniciales}</Text>
+            </View>
+          )}
+          <Text style={{ fontFamily: 'Poppins_500Medium', fontWeight: '600', fontSize: e(14), color: Colors.turquesa }} numberOfLines={1}>
+            {usuario?.nombre ?? 'User'}
           </Text>
           <Ionicons name="chevron-down" size={e(14)} color={Colors.turquesa} />
         </Pressable>
@@ -313,6 +337,7 @@ export default function HomeScreen() {
                         padding: e(24),
                         gap: e(16),
                         overflow: 'hidden',
+                        ...SOMBRA_TARJETA,
                       }}>
                       {destacado && (
                         <View
