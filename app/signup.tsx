@@ -45,7 +45,7 @@ export default function SignupScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const validar = () => {
-    if (nombre.trim().length === 0) return 'Introduce tu nombre';
+    if (nombre.trim().length === 0) return 'Elige un nombre de usuario';
     if (!EMAIL_REGEX.test(email.trim())) return 'Introduce un email válido';
     if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
     if (password !== confirmarPassword) return 'Las contraseñas no coinciden';
@@ -177,13 +177,14 @@ export default function SignupScreen() {
 
           <View style={{ width: '100%', gap: e(16) }}>
             <View style={{ width: '100%', gap: e(8) }}>
-              <Text style={etiquetaEstilo}>FULL NAME</Text>
+              <Text style={etiquetaEstilo}>USERNAME</Text>
               <TextInput
                 style={campoEstilo}
-                placeholder="Enter your name"
+                placeholder="Choose a username"
                 placeholderTextColor={COLOR_PLACEHOLDER}
                 value={nombre}
                 onChangeText={setNombre}
+                autoCapitalize="none"
               />
             </View>
 

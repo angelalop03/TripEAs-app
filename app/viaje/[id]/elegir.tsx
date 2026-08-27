@@ -21,10 +21,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Logo } from '@/components/Logo';
+import { BotonMisViajes } from '@/components/BotonMisViajes';
 import { RuletaWheel } from '@/components/RuletaWheel';
 import { fetchConToken } from '@/constants/Api';
 import { Colors } from '@/constants/Colors';
+import { volverSeguro } from '@/constants/Navegacion';
 
 const FRAME_WIDTH = 393;
 const COLOR_LABEL = '#216489';
@@ -176,7 +177,27 @@ export default function ElegirScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => cargar(true)} tintColor={Colors.turquesa} />}>
         <View style={{ paddingTop: insets.top + e(9), paddingHorizontal: e(9) }}>
-          <Logo size={e(20)} />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: e(8),
+              alignSelf: 'flex-start',
+              backgroundColor: '#FFFFFF',
+              borderRadius: e(20),
+              paddingHorizontal: e(10),
+              paddingVertical: e(8),
+              shadowColor: '#000000',
+              shadowOpacity: 0.08,
+              shadowOffset: { width: 0, height: 2 },
+              shadowRadius: 6,
+              elevation: 3,
+            }}>
+            <Pressable onPress={() => volverSeguro('/')} hitSlop={6}>
+              <Ionicons name="chevron-back" size={e(16)} color={Colors.turquesa} />
+            </Pressable>
+            <BotonMisViajes />
+          </View>
         </View>
 
         <View style={{ alignItems: 'center', paddingHorizontal: e(24), paddingTop: e(24) }}>

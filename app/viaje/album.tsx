@@ -121,7 +121,7 @@ export default function AlbumScreen() {
       return;
     }
     const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 0.7,
     });
@@ -300,13 +300,15 @@ export default function AlbumScreen() {
         )}
       </ScrollView>
 
-      {/* Botón flotante para subir */}
+      {/* Botón flotante para subir — bottom calculado con insets.bottom
+          (no un valor fijo) para que no quede tapado por BarraInferiorViaje
+          en dispositivos con home indicator. */}
       <Pressable
         onPress={() => setModalSubir(true)}
         style={{
           position: 'absolute',
           right: e(19),
-          bottom: e(93),
+          bottom: insets.bottom + 84,
           width: e(56),
           height: e(56),
           borderRadius: e(28),

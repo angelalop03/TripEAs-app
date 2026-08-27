@@ -10,6 +10,7 @@ export interface Usuario {
   id: string;
   nombre: string;
   email: string;
+  url_foto_perfil?: string | null;
 }
 
 // Helpers standalone (sin React) para que constants/Api.ts pueda leer/borrar
@@ -31,6 +32,7 @@ export function normalizarUsuario(datos: Record<string, unknown>): Usuario {
     id: String(datos.id ?? datos.id_usuario ?? ''),
     nombre: String(datos.nombre ?? usuarioMetadata?.nombre ?? datos.email ?? 'Usuario'),
     email: String(datos.email ?? ''),
+    url_foto_perfil: (datos.url_foto_perfil as string | null | undefined) ?? null,
   };
 }
 
@@ -40,6 +42,7 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (token: string, usuario: Usuario) => Promise<void>;
   logout: () => Promise<void>;
+  actualizarUsuario: (cambios: Partial<Usuario>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,8 +76,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(null);
   }, []);
 
+  // Actualiza el usuario en memoria + AsyncStorage tras editar el perfil,
+  // sin necesidad de volver a hacer login para que el resto de la app
+  // (sidebar, etc.) refleje el nombre/foto nuevos al instante.
+  const actualizarUsuario = useCallback(async (cambios: Partial<Usuario>) => {
+    setUsuario((previo) => {
+      if (!previo) return previo;
+      const nuevo = { ...previo, ...cambios };
+      AsyncStorage.setItem(USER_KEY, JSON.stringify(nuevo));
+      return nuevo;
+    });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ token, usuario, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ token, usuario, isLoading, login, logout, actualizarUsuario }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,7 @@
 // Menú lateral (drawer) que se abre al pulsar la pill de perfil del Home.
 // Medidas replicadas del diseño de Figma (sidebar de 256px de ancho).
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Alert, Animated, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -113,14 +114,28 @@ export function SidebarMenu({ visible, onClose }: Props) {
           <View style={{ width: '100%', gap: 8 }}>
             <ItemMenu icono="file-tray-outline" etiqueta="Mis Viajes" onPress={onClose} />
             <ItemMenu icono="calendar-outline" etiqueta="Calendario" onPress={() => proximamente('Calendario')} />
-            <ItemMenu icono="settings-outline" etiqueta="Ajustes" chevron onPress={() => proximamente('Ajustes')} />
+            <ItemMenu
+              icono="settings-outline"
+              etiqueta="Ajustes"
+              onPress={() => {
+                onClose();
+                router.push('/ajustes-perfil');
+              }}
+            />
           </View>
 
           <View style={{ flex: 1 }} />
 
           {/* Navegación secundaria */}
           <View style={{ width: '100%', gap: 8 }}>
-            <ItemMenu icono="help-circle-outline" etiqueta="Ayuda" onPress={() => proximamente('Ayuda')} />
+            <ItemMenu
+              icono="help-circle-outline"
+              etiqueta="Ayuda"
+              onPress={() => {
+                onClose();
+                router.push('/ayuda');
+              }}
+            />
             <ItemMenu
               icono="log-out-outline"
               etiqueta="Logout Account"

@@ -19,6 +19,16 @@ const FRAME_WIDTH = 393;
 const COLOR_MUTED = '#6B7B72';
 const COLOR_SUBTITULO = '#3B4A43';
 
+// Variedad de color por lista (sin implicar categorías: mismo icono para
+// todas, solo cambia el acento) para que la pantalla no se vea monótona.
+const ACENTOS_LISTA = [
+  { bg: Colors.celesteAgua, fg: '#216489' },
+  { bg: '#FFE9E5', fg: '#C2410C' },
+  { bg: '#E6F9EC', fg: '#006449' },
+  { bg: '#EFE9FE', fg: '#5B3FA8' },
+  { bg: '#FFF3D6', fg: '#8A6D00' },
+];
+
 interface Item {
   id_item: string;
   nombre_item: string;
@@ -138,7 +148,20 @@ export default function ListasScreen() {
 
         <View style={{ paddingHorizontal: e(24), paddingTop: e(16), gap: e(24) }}>
           {/* Buscador */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FDFDFD', borderRadius: e(20), paddingHorizontal: e(16), height: e(48) }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#FDFDFD',
+              borderRadius: e(20),
+              paddingHorizontal: e(16),
+              height: e(48),
+              shadowColor: '#000000',
+              shadowOpacity: 0.06,
+              shadowOffset: { width: 0, height: 2 },
+              shadowRadius: 6,
+              elevation: 2,
+            }}>
             <TextInput
               style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(14), color: '#1A1C1A' }}
               placeholder="Buscar cualquier cosa..."
@@ -154,7 +177,19 @@ export default function ListasScreen() {
           {isLoading ? (
             <ActivityIndicator color={Colors.turquesa} style={{ marginTop: e(20) }} />
           ) : listasFiltradas.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: e(24) }}>
+            <View
+              style={{
+                alignItems: 'center',
+                paddingVertical: e(32),
+                paddingHorizontal: e(24),
+                backgroundColor: '#FFFFFF',
+                borderRadius: e(24),
+                shadowColor: '#000000',
+                shadowOpacity: 0.05,
+                shadowOffset: { width: 0, height: 2 },
+                shadowRadius: 6,
+                elevation: 2,
+              }}>
               <Image source={require('@/assets/images/capibara.png')} resizeMode="contain" style={{ width: e(100), height: e(100), marginBottom: e(12) }} />
               <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(16), color: Colors.azulProfundo, marginBottom: e(4) }}>
                 {listas.length === 0 ? 'Aún no hay listas' : 'Ninguna lista coincide'}
@@ -165,11 +200,12 @@ export default function ListasScreen() {
             </View>
           ) : (
             <View style={{ gap: e(16) }}>
-              {listasFiltradas.map((lista) => {
+              {listasFiltradas.map((lista, indice) => {
                 const total = lista.items_lista.length;
                 const completados = lista.items_lista.filter((i) => i.esta_completado).length;
                 const expandida = expandidas.has(lista.id_lista);
                 const pendientes = total - completados;
+                const acento = ACENTOS_LISTA[indice % ACENTOS_LISTA.length];
 
                 return (
                   <View
@@ -188,14 +224,37 @@ export default function ListasScreen() {
                     }}>
                     <Pressable
                       onPress={() => alternarExpandida(lista.id_lista)}
-                      style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: e(20) }}>
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: e(14), padding: e(20) }}>
+                      <View
+                        style={{
+                          width: e(44),
+                          height: e(44),
+                          borderRadius: 999,
+                          backgroundColor: acento.bg,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Ionicons name="list-outline" size={e(20)} color={acento.fg} />
+                      </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(22), color: Colors.azulProfundo }} numberOfLines={1}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(18), color: Colors.azulProfundo }} numberOfLines={1}>
                           {lista.titulo_lista}
                         </Text>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(12), color: COLOR_SUBTITULO, marginTop: e(4) }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(12), color: COLOR_SUBTITULO, marginTop: e(2) }}>
                           {total === 0 ? 'Sin items todavía' : pendientes === 0 ? `${completados} de ${total} completados` : `${pendientes} pendiente${pendientes === 1 ? '' : 's'}`}
                         </Text>
+                        {total > 0 && (
+                          <View style={{ height: e(4), borderRadius: 999, backgroundColor: '#E9E8E5', marginTop: e(8), overflow: 'hidden' }}>
+                            <View
+                              style={{
+                                height: '100%',
+                                width: `${(completados / total) * 100}%`,
+                                backgroundColor: pendientes === 0 ? Colors.mintaSuave : Colors.turquesa,
+                                borderRadius: 999,
+                              }}
+                            />
+                          </View>
+                        )}
                       </View>
                       <Ionicons name={expandida ? 'chevron-up' : 'chevron-down'} size={e(16)} color={COLOR_SUBTITULO} />
                     </Pressable>
@@ -297,13 +356,17 @@ export default function ListasScreen() {
         </View>
       </ScrollView>
 
-      {/* Botón flotante para crear lista */}
+      {/* Botón flotante para crear lista — BarraInferiorViaje usa medidas
+          fijas (sin la escala e() de esta pantalla) y su alto real depende
+          del safe-area del dispositivo, así que el offset se calcula con
+          insets.bottom en vez de un valor fijo (por eso antes quedaba
+          tapado en dispositivos con home indicator). */}
       <Pressable
         onPress={() => setModalCrear(true)}
         style={{
           position: 'absolute',
           right: e(27),
-          bottom: e(93),
+          bottom: insets.bottom + 84,
           width: e(56),
           height: e(56),
           borderRadius: 999,

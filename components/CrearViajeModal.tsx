@@ -23,6 +23,10 @@ const COLOR_LABEL = '#216489';
 const COLOR_PLACEHOLDER = '#6B7B72';
 const COLOR_BORDE_CAMPO = '#D4EFF2';
 
+// Subida de portada deshabilitada temporalmente: POST /viajes/subir-portada
+// está devolviendo 400 y aún no hemos aislado la causa exacta.
+const SUBIDA_PORTADA_DESHABILITADA = true;
+
 // Muestra una fecha ISO "YYYY-MM-DD" como "DD/MM/AAAA"
 function formatearFechaVisible(fechaISO: string): string {
   const [anio, mes, dia] = fechaISO.split('-');
@@ -59,7 +63,14 @@ export function CrearViajeModal({ visible, onClose, onCreado }: Props) {
     onClose();
   };
 
+  // TODO: reactivar cuando se resuelva el 400 de POST /viajes/subir-portada
+  // (falla al subir la portada al crear un viaje). Mientras tanto avisamos
+  // en vez de dejar que el usuario tope con un error críptico.
   const elegirPortada = async () => {
+    if (SUBIDA_PORTADA_DESHABILITADA) {
+      Alert.alert('Próximamente', 'Podrás añadir una foto de portada muy pronto.');
+      return;
+    }
     const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permiso.granted) {
       Alert.alert('Permiso necesario', 'Necesitamos acceso a tus fotos para elegir una portada.');
@@ -67,7 +78,7 @@ export function CrearViajeModal({ visible, onClose, onCreado }: Props) {
     }
 
     const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.7,

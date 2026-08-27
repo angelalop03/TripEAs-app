@@ -4,10 +4,13 @@
 // botones (crear / unirse a un viaje).
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -67,6 +70,24 @@ export default function HomeScreen() {
   const [modalCrear, setModalCrear] = useState(false);
   const [modalUnirse, setModalUnirse] = useState(false);
   const [sidebarAbierto, setSidebarAbierto] = useState(false);
+
+  // Anima la apertura/cierre del menú del FAB: el fondo se atenúa, las
+  // opciones entran deslizándose hacia arriba, y el icono "+" gira 45° para
+  // convertirse visualmente en una "x" (sin cambiar de icono).
+  const menuAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(menuAnim, {
+      toValue: fabExpandido ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      // RCTAnimation no existe en web (React Native Web), así que el native
+      // driver solo se usa en iOS/Android; en web cae a JS sin avisar.
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  }, [fabExpandido, menuAnim]);
+  const rotacionFab = menuAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] });
+  const translateYMenu = menuAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] });
+  const escalaMenu = menuAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
 
   const cargarViajes = useCallback(async (mostrarSpinner = false) => {
     if (mostrarSpinner) setIsRefreshing(true);
@@ -382,63 +403,89 @@ export default function HomeScreen() {
       )}
 
       {/* FAB */}
-      {fabExpandido && (
-        <Pressable
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-          onPress={() => setFabExpandido(false)}
-        />
-      )}
-      <View style={{ position: 'absolute', bottom: insets.bottom + e(60), left: 0, right: 0, alignItems: 'center' }}>
-        {fabExpandido && (
-          <View style={{ gap: e(12), marginBottom: e(16), alignItems: 'center' }}>
-            <Pressable
-              style={{
-                backgroundColor: Colors.turquesa,
-                borderRadius: 8,
-                paddingVertical: e(10),
-                paddingHorizontal: e(22),
-              }}
-              onPress={() => {
-                setFabExpandido(false);
-                setModalCrear(true);
-              }}>
-              <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: e(16), color: '#FFFFFF' }}>Crear grupo</Text>
-            </Pressable>
+      <Animated.View
+        pointerEvents={fabExpandido ? 'auto' : 'none'}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#1A1C1A', opacity: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.25] }) }}>
+        <Pressable style={{ flex: 1 }} onPress={() => setFabExpandido(false)} />
+      </Animated.View>
 
-            <Pressable
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderWidth: 3,
-                borderColor: Colors.turquesa,
-                borderRadius: 8,
-                paddingVertical: e(10),
-                paddingHorizontal: e(22),
-              }}
-              onPress={() => {
-                setFabExpandido(false);
-                setModalUnirse(true);
-              }}>
-              <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: e(16), color: Colors.turquesa }}>Unirse a viaje</Text>
-            </Pressable>
-          </View>
-        )}
+      <View style={{ position: 'absolute', bottom: insets.bottom + e(60), left: 0, right: 0, alignItems: 'center' }}>
+        <Animated.View
+          pointerEvents={fabExpandido ? 'auto' : 'none'}
+          style={{
+            gap: e(12),
+            marginBottom: e(16),
+            alignItems: 'center',
+            opacity: menuAnim,
+            transform: [{ translateY: translateYMenu }, { scale: escalaMenu }],
+          }}>
+          <Pressable
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: e(8),
+              backgroundColor: Colors.turquesa,
+              borderRadius: 999,
+              paddingVertical: e(14),
+              paddingHorizontal: e(26),
+              shadowColor: '#00E9B0',
+              shadowOpacity: 0.35,
+              shadowOffset: { width: 0, height: 4 },
+              shadowRadius: 10,
+              elevation: 5,
+            }}
+            onPress={() => {
+              setFabExpandido(false);
+              setModalCrear(true);
+            }}>
+            <Ionicons name="add-circle" size={e(20)} color="#FFFFFF" />
+            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(15), color: '#FFFFFF' }}>Crear grupo</Text>
+          </Pressable>
+
+          <Pressable
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: e(8),
+              backgroundColor: '#FFFFFF',
+              borderWidth: 2,
+              borderColor: Colors.turquesa,
+              borderRadius: 999,
+              paddingVertical: e(13),
+              paddingHorizontal: e(26),
+              shadowColor: '#000000',
+              shadowOpacity: 0.08,
+              shadowOffset: { width: 0, height: 3 },
+              shadowRadius: 8,
+              elevation: 3,
+            }}
+            onPress={() => {
+              setFabExpandido(false);
+              setModalUnirse(true);
+            }}>
+            <Ionicons name="enter-outline" size={e(18)} color={Colors.turquesa} />
+            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(15), color: Colors.turquesa }}>Unirse a viaje</Text>
+          </Pressable>
+        </Animated.View>
 
         <Pressable
           style={{
-            width: e(52),
-            height: e(52),
-            borderRadius: e(52),
+            width: e(56),
+            height: e(56),
+            borderRadius: 999,
             backgroundColor: Colors.turquesa,
             alignItems: 'center',
             justifyContent: 'center',
-            shadowColor: '#95D0F8',
-            shadowOpacity: 1,
-            shadowOffset: { width: 0, height: 3 },
-            shadowRadius: 6,
-            elevation: 6,
+            shadowColor: '#00E9B0',
+            shadowOpacity: 0.4,
+            shadowOffset: { width: 0, height: 4 },
+            shadowRadius: 12,
+            elevation: 8,
           }}
           onPress={() => setFabExpandido((v) => !v)}>
-          <Ionicons name={fabExpandido ? 'close' : 'add'} size={e(24)} color="#FFFFFF" />
+          <Animated.View style={{ transform: [{ rotate: rotacionFab }] }}>
+            <Ionicons name="add" size={e(26)} color="#FFFFFF" />
+          </Animated.View>
         </Pressable>
       </View>
 

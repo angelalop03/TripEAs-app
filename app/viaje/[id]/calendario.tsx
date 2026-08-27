@@ -7,10 +7,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BotonMisViajes } from '@/components/BotonMisViajes';
 import { CrearActividadModal } from '@/components/CrearActividadModal';
-import { Logo } from '@/components/Logo';
 import { fetchConToken } from '@/constants/Api';
 import { Colors } from '@/constants/Colors';
+import { volverSeguro } from '@/constants/Navegacion';
 
 const FRAME_WIDTH = 393;
 const COLOR_LABEL = '#216489';
@@ -125,7 +126,41 @@ export default function CalendarioScreen() {
 
   const celdas = useMemo(() => generarCeldasDelMes(mesVisible), [mesVisible]);
 
+  const eventosEsteMes = useMemo(
+    () => eventos.filter((ev) => {
+      const fecha = new Date(ev.fecha_hora_inicio);
+      return fecha.getMonth() === mesVisible.getMonth() && fecha.getFullYear() === mesVisible.getFullYear();
+    }).length,
+    [eventos, mesVisible]
+  );
+
   const cambiarMes = (delta: number) => setMesVisible((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+
+  const irAHoy = () => {
+    setMesVisible(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    setDiaSeleccionado(claveFecha(hoy));
+  };
+
+  const enMesActual = mesVisible.getMonth() === hoy.getMonth() && mesVisible.getFullYear() === hoy.getFullYear();
+  const mostrarBotonHoy = !enMesActual || diaSeleccionado !== claveFecha(hoy);
+
+  const eliminarEvento = (evento: Evento) => {
+    Alert.alert('¿Eliminar actividad?', `"${evento.titulo}" se eliminará para todo el viaje.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const respuesta = await fetchConToken(`/calendario/${evento.id_evento}`, { method: 'DELETE' });
+            if (respuesta.ok) await cargar();
+          } catch {
+            // Sin conexión: no hacemos nada más, el usuario puede reintentar.
+          }
+        },
+      },
+    ]);
+  };
 
   const nombreMes = mesVisible
     .toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
@@ -136,34 +171,76 @@ export default function CalendarioScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: e(160) }} showsVerticalScrollIndicator={false}>
         {/* Navbar */}
         <View style={{ paddingTop: insets.top + e(9), paddingHorizontal: e(9) }}>
-          <Logo size={e(20)} />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: e(8),
+              alignSelf: 'flex-start',
+              backgroundColor: '#FFFFFF',
+              borderRadius: e(20),
+              paddingHorizontal: e(10),
+              paddingVertical: e(8),
+              shadowColor: '#000000',
+              shadowOpacity: 0.08,
+              shadowOffset: { width: 0, height: 2 },
+              shadowRadius: 6,
+              elevation: 3,
+            }}>
+            <Pressable onPress={() => volverSeguro('/')} hitSlop={6}>
+              <Ionicons name="chevron-back" size={e(16)} color={Colors.turquesa} />
+            </Pressable>
+            <BotonMisViajes />
+          </View>
         </View>
 
         <View style={{ paddingHorizontal: e(21), paddingTop: e(24), gap: e(16) }}>
           {/* Mes + navegación */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1, gap: e(4) }}>
               <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(22), color: COLOR_LABEL }}>{nombreMes}</Text>
               <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(14), color: '#1A1C1A', opacity: 0.7 }} numberOfLines={1}>
                 {nombreViaje || 'Tu viaje'}
               </Text>
+              {eventosEsteMes > 0 && (
+                <View
+                  style={{
+                    alignSelf: 'flex-start',
+                    backgroundColor: Colors.mintaSuave,
+                    borderRadius: 999,
+                    paddingHorizontal: e(10),
+                    paddingVertical: e(3),
+                    marginTop: e(2),
+                  }}>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: e(11), color: '#006449' }}>
+                    {eventosEsteMes} actividad{eventosEsteMes === 1 ? '' : 'es'} este mes
+                  </Text>
+                </View>
+              )}
             </View>
-            <View style={{ flexDirection: 'row', gap: e(8) }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: e(8) }}>
+              {mostrarBotonHoy && (
+                <Pressable
+                  onPress={irAHoy}
+                  style={{ height: e(34), borderRadius: 999, backgroundColor: '#FFFFFF', paddingHorizontal: e(14), alignItems: 'center', justifyContent: 'center', ...SOMBRA_TARJETA }}>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: e(12), color: Colors.turquesa }}>Hoy</Text>
+                </Pressable>
+              )}
               <Pressable
                 onPress={() => cambiarMes(-1)}
-                style={{ width: e(34), height: e(34), borderRadius: 999, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                style={{ width: e(34), height: e(34), borderRadius: 999, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', ...SOMBRA_TARJETA }}>
                 <Ionicons name="chevron-back" size={e(14)} color="#1A1C1A" />
               </Pressable>
               <Pressable
                 onPress={() => cambiarMes(1)}
-                style={{ width: e(34), height: e(34), borderRadius: 999, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                style={{ width: e(34), height: e(34), borderRadius: 999, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', ...SOMBRA_TARJETA }}>
                 <Ionicons name="chevron-forward" size={e(14)} color="#1A1C1A" />
               </Pressable>
             </View>
           </View>
 
           {/* Grid del calendario */}
-          <View style={{ width: '100%', backgroundColor: '#FFFFFF', borderRadius: e(32), padding: e(8), gap: e(16) }}>
+          <View style={{ width: '100%', backgroundColor: '#FFFFFF', borderRadius: e(32), padding: e(8), gap: e(16), ...SOMBRA_TARJETA }}>
             <View
               style={{
                 flexDirection: 'row',
@@ -215,10 +292,12 @@ export default function CalendarioScreen() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: esSeleccionado ? '#98D3FD' : 'transparent',
+                        borderWidth: esHoy && !esSeleccionado ? 1.5 : 0,
+                        borderColor: Colors.turquesa,
                       }}>
                       <Text
                         style={{
-                          fontFamily: esSeleccionado ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_400Regular',
+                          fontFamily: esSeleccionado || esHoy ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_400Regular',
                           fontSize: e(14),
                           color: esSeleccionado ? '#145C80' : esHoy ? Colors.turquesa : '#1A1C1A',
                         }}>
@@ -251,17 +330,23 @@ export default function CalendarioScreen() {
             {isLoading ? (
               <ActivityIndicator color={Colors.turquesa} />
             ) : eventosDelDia.length === 0 ? (
-              <View style={{ width: '100%', backgroundColor: '#FFFFFF', borderRadius: e(32), padding: e(24), alignItems: 'center' }}>
+              <View style={{ width: '100%', backgroundColor: '#FFFFFF', borderRadius: e(32), padding: e(24), alignItems: 'center', ...SOMBRA_TARJETA }}>
+                <Image source={require('@/assets/images/capibara.png')} resizeMode="contain" style={{ width: e(80), height: e(80), marginBottom: e(8) }} />
                 <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(14), color: COLOR_MUTED, textAlign: 'center' }}>
                   No hay nada planeado para este día todavía.
                 </Text>
               </View>
             ) : (
-              eventosDelDia.map((evento) => {
+              eventosDelDia.map((evento, indice) => {
                 const hora = new Date(evento.fecha_hora_inicio).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                const horaFin = evento.fecha_hora_fin
+                  ? new Date(evento.fecha_hora_fin).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+                  : null;
+                const estilo = estiloParaEvento(evento.titulo, indice);
                 return (
-                  <View
+                  <Pressable
                     key={evento.id_evento}
+                    onLongPress={() => eliminarEvento(evento)}
                     style={{
                       width: '100%',
                       flexDirection: 'row',
@@ -270,28 +355,29 @@ export default function CalendarioScreen() {
                       padding: e(20),
                       borderRadius: e(32),
                       backgroundColor: '#FFFFFF',
+                      ...SOMBRA_TARJETA,
                     }}>
                     <View
                       style={{
                         width: e(48),
                         height: e(48),
                         borderRadius: 999,
-                        backgroundColor: Colors.celesteAgua,
+                        backgroundColor: estilo.bg,
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}>
-                      <Ionicons name="sparkles-outline" size={e(20)} color="#006449" />
+                      <Ionicons name={estilo.icono} size={e(20)} color={estilo.fg} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(16), color: '#1A1C1A' }} numberOfLines={2}>
                         {evento.titulo}
                       </Text>
                       <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(12), color: COLOR_MUTED }}>
-                        {hora}
+                        {horaFin ? `${hora} - ${horaFin}` : hora}
                         {evento.ubicacion ? ` • ${evento.ubicacion}` : ''}
                       </Text>
                     </View>
-                  </View>
+                  </Pressable>
                 );
               })
             )}

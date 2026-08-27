@@ -37,6 +37,10 @@ const COLOR_MUTED = '#6B7B72';
 const COLOR_BORDE_CAMPO = '#D4EFF2';
 const COLOR_TITULO = '#1A1C1A';
 
+// Subida de portada deshabilitada temporalmente: POST /viajes/subir-portada
+// está devolviendo 400 y aún no hemos aislado la causa exacta.
+const SUBIDA_PORTADA_DESHABILITADA = true;
+
 interface Viaje {
   id_viaje: string;
   nombre_viaje: string;
@@ -154,14 +158,19 @@ export default function AjustesScreen() {
     setErrorGuardar('');
   };
 
+  // TODO: reactivar cuando se resuelva el 400 de POST /viajes/subir-portada.
   const elegirPortada = async () => {
+    if (SUBIDA_PORTADA_DESHABILITADA) {
+      Alert.alert('Próximamente', 'Podrás cambiar la foto de portada muy pronto.');
+      return;
+    }
     const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permiso.granted) {
       Alert.alert('Permiso necesario', 'Necesitamos acceso a tus fotos para elegir una portada.');
       return;
     }
     const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.7,
