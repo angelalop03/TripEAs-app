@@ -3,7 +3,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Alert, Animated, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/Colors';
@@ -67,11 +67,6 @@ export function SidebarMenu({ visible, onClose }: Props) {
     }).start();
   }, [visible, anchoDrawer, traslacion]);
 
-  const proximamente = (nombre: string) => {
-    onClose();
-    Alert.alert('Próximamente', `${nombre} aún no está disponible`);
-  };
-
   const iniciales = (usuario?.nombre ?? 'U').trim().charAt(0).toUpperCase();
 
   return (
@@ -113,7 +108,14 @@ export function SidebarMenu({ visible, onClose }: Props) {
           {/* Navegación principal */}
           <View style={{ width: '100%', gap: 8 }}>
             <ItemMenu icono="file-tray-outline" etiqueta="Mis Viajes" onPress={onClose} />
-            <ItemMenu icono="calendar-outline" etiqueta="Calendario" onPress={() => proximamente('Calendario')} />
+            <ItemMenu
+              icono="calendar-outline"
+              etiqueta="Calendario"
+              onPress={() => {
+                onClose();
+                router.push('/calendario');
+              }}
+            />
             <ItemMenu
               icono="settings-outline"
               etiqueta="Ajustes"

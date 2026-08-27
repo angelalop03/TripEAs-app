@@ -12,12 +12,19 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { Colors } from '@/constants/Colors';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 
-SplashScreen.preventAutoHideAsync();
+// En web no hay un splash screen nativo que registrar: llamar a estas APIs
+// ahí (o dos veces, por Fast Refresh) lanza "No native splash screen
+// registered for given view controller". Solo tiene sentido en iOS/Android,
+// y el .catch() de más es una red de seguridad extra por si igualmente se
+// llama dos veces en desarrollo.
+if (Platform.OS !== 'web') {
+  SplashScreen.preventAutoHideAsync().catch(() => {});
+}
 
 function RootNavigator() {
   const { token, isLoading } = useAuth();
@@ -52,8 +59,8 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
+    if (fontsLoaded && Platform.OS !== 'web') {
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded]);
 
