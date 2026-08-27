@@ -6,12 +6,13 @@ import { Asset } from 'expo-asset';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
 import { SelectorAvatarModal } from '@/components/SelectorAvatarModal';
 import { fetchConToken } from '@/constants/Api';
+import { archivoDesdeUri } from '@/constants/Archivos';
 import type { AvatarPerfil } from '@/constants/AvataresPerfil';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
@@ -40,6 +41,7 @@ export default function AjustesPerfilScreen() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [modalAvatares, setModalAvatares] = useState(false);
+  const [modalOpcionesFoto, setModalOpcionesFoto] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
@@ -88,13 +90,10 @@ export default function AjustesPerfilScreen() {
     }
   };
 
-  const abrirSelectorFoto = () => {
-    Alert.alert('Foto de perfil', undefined, [
-      { text: 'Elegir avatar', onPress: () => setModalAvatares(true) },
-      { text: 'Subir desde galería', onPress: elegirFoto },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  };
+  // Antes usaba Alert.alert con 3 botones para elegir "avatar" vs "galería",
+  // pero los Alert de varios botones tienen soporte muy limitado en web (a
+  // veces no aparece nada). Un Modal propio funciona igual en todas partes.
+  const abrirSelectorFoto = () => setModalOpcionesFoto(true);
 
   const hayCambios = !!fotoLocal || (perfil !== null && nombreEdit.trim() !== perfil.nombre && nombreEdit.trim().length > 0);
 
@@ -112,11 +111,8 @@ export default function AjustesPerfilScreen() {
 
       if (fotoLocal) {
         const formData = new FormData();
-        formData.append('archivo', {
-          uri: fotoLocal,
-          name: 'avatar.jpg',
-          type: 'image/jpeg',
-        } as unknown as Blob);
+        const archivo = await archivoDesdeUri(fotoLocal, 'avatar.jpg', 'image/jpeg');
+        formData.append('archivo', archivo, 'avatar.jpg');
 
         const respFoto = await fetchConToken('/usuarios/subir-foto-perfil', {
           method: 'POST',
@@ -317,6 +313,43 @@ export default function AjustesPerfilScreen() {
       </ScrollView>
 
       <SelectorAvatarModal visible={modalAvatares} onClose={() => setModalAvatares(false)} onSeleccionar={seleccionarAvatar} />
+
+      <Modal visible={modalOpcionesFoto} transparent animationType="fade" onRequestClose={() => setModalOpcionesFoto(false)}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+          onPress={() => setModalOpcionesFoto(false)}>
+          <Pressable
+            onPress={(evento) => evento.stopPropagation()}
+            style={{ width: '100%', maxWidth: 320, backgroundColor: '#FFFFFF', borderRadius: 24, paddingVertical: 8 }}>
+            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: Colors.azulProfundo, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+              Foto de perfil
+            </Text>
+            <Pressable
+              onPress={() => {
+                setModalOpcionesFoto(false);
+                setModalAvatares(true);
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 14 }}>
+              <Ionicons name="happy-outline" size={20} color={Colors.turquesa} />
+              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: '#1A1C1A' }}>Elegir avatar</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setModalOpcionesFoto(false);
+                elegirFoto();
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 14 }}>
+              <Ionicons name="images-outline" size={20} color={Colors.turquesa} />
+              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: '#1A1C1A' }}>Subir desde galería</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setModalOpcionesFoto(false)}
+              style={{ paddingHorizontal: 20, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#F0F0F0', marginTop: 4 }}>
+              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: COLOR_MUTED, textAlign: 'center' }}>Cancelar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

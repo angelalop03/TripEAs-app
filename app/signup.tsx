@@ -8,6 +8,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  LayoutChangeEvent,
   Pressable,
   ScrollView,
   Text,
@@ -43,6 +44,19 @@ export default function SignupScreen() {
   const [error, setError] = useState('');
   const [errorDeConexion, setErrorDeConexion] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // La tarjeta va en position:absolute (para el layout 1:1 de Figma), y en
+  // RN los hijos absolute no cuentan para la altura scrolleable del
+  // contenedor: con 4 campos (uno más que login) su alto real supera el
+  // minHeight fijo del frame y la parte de abajo queda inalcanzable al
+  // hacer scroll. Medimos la altura real con onLayout y ampliamos el área
+  // scrolleable para que siempre quepa el contenido, aparezca o no el error.
+  const [alturaContenido, setAlturaContenido] = useState(0);
+  const CARD_TOP = e(199);
+  const onLayoutTarjeta = (evento: LayoutChangeEvent) => {
+    const necesaria = CARD_TOP + evento.nativeEvent.layout.height + e(24);
+    setAlturaContenido((previa) => Math.max(previa, necesaria));
+  };
 
   const validar = () => {
     if (nombre.trim().length === 0) return 'Elige un nombre de usuario';
@@ -121,7 +135,7 @@ export default function SignupScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: Colors.amarilloFigma }}
-      contentContainerStyle={{ minHeight: e(FRAME_HEIGHT) }}
+      contentContainerStyle={{ minHeight: Math.max(alturaContenido, e(FRAME_HEIGHT)) }}
       keyboardShouldPersistTaps="handled">
       <View style={{ position: 'absolute', top: e(45), left: 0, right: 0, alignItems: 'center' }}>
         <Logo
@@ -154,7 +168,7 @@ export default function SignupScreen() {
         VIAJA, ORGANIZA, COMPARTE, DISFRUTA
       </Text>
 
-      <View style={{ position: 'absolute', left: e(24), top: e(199), width: e(342) }}>
+      <View style={{ position: 'absolute', left: e(24), top: CARD_TOP, width: e(342) }} onLayout={onLayoutTarjeta}>
         <View
           style={{
             width: '100%',

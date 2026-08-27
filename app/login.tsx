@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  LayoutChangeEvent,
   Pressable,
   ScrollView,
   Text,
@@ -37,6 +38,17 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [errorDeConexion, setErrorDeConexion] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Misma protección que en signup.tsx: la tarjeta va en position:absolute
+  // y esos hijos no cuentan para la altura scrolleable del contenedor, así
+  // que medimos su alto real y ampliamos el área de scroll si hace falta
+  // (p.ej. cuando aparece el mensaje de error).
+  const [alturaContenido, setAlturaContenido] = useState(0);
+  const CARD_TOP = e(386);
+  const onLayoutTarjeta = (evento: LayoutChangeEvent) => {
+    const necesaria = CARD_TOP + evento.nativeEvent.layout.height + e(24);
+    setAlturaContenido((previa) => Math.max(previa, necesaria));
+  };
 
   const validar = () => {
     if (!EMAIL_REGEX.test(email.trim())) return 'Introduce un email válido';
@@ -92,7 +104,7 @@ export default function LoginScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: Colors.amarilloFigma }}
-      contentContainerStyle={{ minHeight: e(FRAME_HEIGHT) }}
+      contentContainerStyle={{ minHeight: Math.max(alturaContenido, e(FRAME_HEIGHT)) }}
       keyboardShouldPersistTaps="handled">
       <View style={{ position: 'absolute', top: e(30), left: 0, right: 0, alignItems: 'center' }}>
         <Logo
@@ -137,7 +149,9 @@ export default function LoginScreen() {
         }}
       />
 
-      <View style={{ position: 'absolute', left: e(27), top: e(386), width: e(342), alignItems: 'center', gap: e(7) }}>
+      <View
+        style={{ position: 'absolute', left: e(27), top: CARD_TOP, width: e(342), alignItems: 'center', gap: e(7) }}
+        onLayout={onLayoutTarjeta}>
         <View
           style={{
             width: '100%',
