@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BotonMisViajes } from '@/components/BotonMisViajes';
@@ -94,6 +94,7 @@ export default function TripHomeScreen() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [modalAnadir, setModalAnadir] = useState(false);
 
   const cargar = useCallback(
     async (mostrarSpinner = false) => {
@@ -151,12 +152,32 @@ export default function TripHomeScreen() {
     return eventos.filter((ev) => new Date(ev.fecha_hora_inicio).getTime() >= ahora).slice(0, 2);
   }, [eventos]);
 
-  const abrirFab = () =>
-    Alert.alert('Añadir', '¿Qué quieres añadir?', [
-      { text: 'Gasto', onPress: () => router.push({ pathname: '/viaje/[id]/gastos', params: { id } }) },
-      { text: 'Evento', onPress: () => router.push({ pathname: '/viaje/[id]/calendario', params: { id } }) },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+  // Antes usaba Alert.alert con varios botones, que tiene soporte muy
+  // limitado en web (a veces no aparece nada). Un Modal propio funciona
+  // igual en todas partes.
+  const OPCIONES_FAB = [
+    {
+      icono: 'receipt-outline' as const,
+      color: '#98D3FD',
+      colorIcono: '#145C80',
+      titulo: 'Gasto',
+      onPress: () => router.push({ pathname: '/viaje/[id]/gastos', params: { id } }),
+    },
+    {
+      icono: 'calendar-outline' as const,
+      color: '#FBF5C3',
+      colorIcono: '#8A6D00',
+      titulo: 'Evento',
+      onPress: () => router.push({ pathname: '/viaje/[id]/calendario', params: { id } }),
+    },
+    {
+      icono: 'person-add-outline' as const,
+      color: '#A8E6CF',
+      colorIcono: '#006449',
+      titulo: 'Participante',
+      onPress: () => router.push({ pathname: '/viaje/participantes', params: { id } }),
+    },
+  ];
 
   const formatoEuro = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
 
@@ -502,7 +523,7 @@ export default function TripHomeScreen() {
       </ScrollView>
 
       <Pressable
-        onPress={abrirFab}
+        onPress={() => setModalAnadir(true)}
         style={{
           position: 'absolute',
           right: e(25),
@@ -521,6 +542,48 @@ export default function TripHomeScreen() {
         }}>
         <Ionicons name="add" size={e(24)} color="#FFFFFF" />
       </Pressable>
+
+      <Modal visible={modalAnadir} transparent animationType="fade" onRequestClose={() => setModalAnadir(false)}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}
+          onPress={() => setModalAnadir(false)}>
+          <Pressable
+            onPress={(evento) => evento.stopPropagation()}
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              paddingBottom: insets.bottom + 16,
+              paddingTop: 8,
+            }}>
+            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: COLOR_TITULO, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 }}>
+              ¿Qué quieres añadir?
+            </Text>
+            {OPCIONES_FAB.map((opcion) => (
+              <Pressable
+                key={opcion.titulo}
+                onPress={() => {
+                  setModalAnadir(false);
+                  opcion.onPress();
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 24, paddingVertical: 14 }}>
+                <View
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 999,
+                    backgroundColor: opcion.color,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Ionicons name={opcion.icono} size={18} color={opcion.colorIcono} />
+                </View>
+                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: COLOR_TITULO }}>{opcion.titulo}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

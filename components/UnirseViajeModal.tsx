@@ -19,6 +19,11 @@ const COLOR_TITULO = '#216489';
 const COLOR_TEXTO_SECUNDARIO = '#3B4A43';
 const COLOR_BORDE_CARD = '#D4EBED';
 
+interface PerfilFantasma {
+  id_usuario: string;
+  nombre: string;
+}
+
 export function UnirseViajeModal({ visible, onClose, onUnido, onCrearOtro }: Props) {
   const { width } = useWindowDimensions();
   const anchoModal = Math.min(width - 32, FRAME_WIDTH);
@@ -28,9 +33,18 @@ export function UnirseViajeModal({ visible, onClose, onUnido, onCrearOtro }: Pro
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Cuando el viaje ya tiene perfiles provisionales (fantasma), el backend
+  // no une al usuario directamente: hay que preguntarle cuál de ellos es él
+  // (o confirmar que es nuevo) antes de completar la unión.
+  const [perfilesFantasma, setPerfilesFantasma] = useState<PerfilFantasma[] | null>(null);
+  const [idViajeActual, setIdViajeActual] = useState<string | null>(null);
+  const [procesandoEleccion, setProcesandoEleccion] = useState(false);
+
   const cerrarYLimpiar = () => {
     setCodigo('');
     setError('');
+    setPerfilesFantasma(null);
+    setIdViajeActual(null);
     onClose();
   };
 
@@ -54,12 +68,64 @@ export function UnirseViajeModal({ visible, onClose, onUnido, onCrearOtro }: Pro
         return;
       }
 
+      if (datos.accion_requerida === 'fusion_identidad') {
+        // Todavía no se ha unido de verdad: hay que elegir primero.
+        setPerfilesFantasma(datos.perfiles_fantasma ?? []);
+        setIdViajeActual(datos.viaje?.id_viaje ?? null);
+        return;
+      }
+
       cerrarYLimpiar();
       onUnido();
     } catch {
       setError('No se pudo conectar con el servidor');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const elegirPerfilFantasma = async (idFantasma: string) => {
+    if (!idViajeActual) return;
+    setError('');
+    setProcesandoEleccion(true);
+    try {
+      const respuesta = await fetchConToken('/participantes/reclamar-identidad', {
+        method: 'POST',
+        body: JSON.stringify({ id_viaje: idViajeActual, id_fantasma: idFantasma }),
+      });
+      const datos = await respuesta.json();
+      if (!respuesta.ok) {
+        setError(datos?.error || 'No se pudo reclamar ese perfil');
+        return;
+      }
+      cerrarYLimpiar();
+      onUnido();
+    } catch {
+      setError('No se pudo conectar con el servidor');
+    } finally {
+      setProcesandoEleccion(false);
+    }
+  };
+
+  const unirseComoNuevo = async () => {
+    setError('');
+    setProcesandoEleccion(true);
+    try {
+      const respuesta = await fetchConToken('/viajes/unirse', {
+        method: 'POST',
+        body: JSON.stringify({ codigo_invitacion: codigo.trim().toUpperCase(), soy_nuevo: true }),
+      });
+      const datos = await respuesta.json();
+      if (!respuesta.ok) {
+        setError(datos?.error || 'No se pudo unir al viaje');
+        return;
+      }
+      cerrarYLimpiar();
+      onUnido();
+    } catch {
+      setError('No se pudo conectar con el servidor');
+    } finally {
+      setProcesandoEleccion(false);
     }
   };
 
@@ -86,155 +152,275 @@ export function UnirseViajeModal({ visible, onClose, onUnido, onCrearOtro }: Pro
             style={{ width: e(128), height: e(128), marginBottom: e(8) }}
           />
 
-          <Text
-            style={{
-              fontFamily: 'PlusJakartaSans_700Bold',
-              fontSize: e(22),
-              color: COLOR_TITULO,
-              textAlign: 'center',
-              marginBottom: e(8),
-            }}>
-            ¿Tienes una invitación?
-          </Text>
-          <Text
-            style={{
-              fontFamily: 'PlusJakartaSans_400Regular',
-              fontSize: e(14),
-              color: COLOR_TEXTO_SECUNDARIO,
-              textAlign: 'center',
-              marginBottom: e(16),
-            }}>
-            Ingresa el código de 8 dígitos para unirte a la aventura con tus amigos.
-          </Text>
-
-          <View
-            style={{
-              width: '100%',
-              backgroundColor: Colors.celesteAgua,
-              borderWidth: 1,
-              borderColor: COLOR_BORDE_CARD,
-              borderRadius: e(32),
-              padding: e(24),
-              gap: e(16),
-              shadowColor: Colors.azulProfundo,
-              shadowOpacity: 0.08,
-              shadowOffset: { width: 0, height: e(4) },
-              shadowRadius: e(20),
-              elevation: 3,
-              marginBottom: e(16),
-            }}>
-            <View style={{ width: '100%', gap: e(8) }}>
+          {perfilesFantasma === null ? (
+            <>
               <Text
                 style={{
-                  fontFamily: 'PlusJakartaSans_600SemiBold',
-                  fontSize: e(12),
-                  letterSpacing: e(0.6),
-                  textTransform: 'uppercase',
-                  color: COLOR_TITULO,
-                  paddingHorizontal: e(4),
-                }}>
-                Código de invitación
-              </Text>
-              <TextInput
-                style={{
-                  width: '100%',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: e(16),
-                  paddingHorizontal: e(16),
-                  paddingVertical: e(14),
                   fontFamily: 'PlusJakartaSans_700Bold',
                   fontSize: e(22),
-                  letterSpacing: e(2.2),
+                  color: COLOR_TITULO,
                   textAlign: 'center',
-                  color: Colors.azulProfundo,
-                }}
-                placeholder="ABCD1234"
-                placeholderTextColor="#6B7280"
-                value={codigo}
-                onChangeText={(texto) => setCodigo(texto.toUpperCase().slice(0, 8))}
-                autoCapitalize="characters"
-                maxLength={8}
-              />
-            </View>
-
-            <View
-              style={{
-                width: '100%',
-                flexDirection: 'row',
-                gap: e(12),
-                backgroundColor: 'rgba(255,255,255,0.5)',
-                borderRadius: e(32),
-                padding: e(12),
-              }}>
-              <Ionicons name="information-circle-outline" size={e(17)} color={COLOR_TITULO} />
+                  marginBottom: e(8),
+                }}>
+                ¿Tienes una invitación?
+              </Text>
               <Text
                 style={{
-                  flex: 1,
                   fontFamily: 'PlusJakartaSans_400Regular',
-                  fontSize: e(10),
-                  lineHeight: e(16),
+                  fontSize: e(14),
                   color: COLOR_TEXTO_SECUNDARIO,
+                  textAlign: 'center',
+                  marginBottom: e(16),
                 }}>
-                Pide el código al administrador del viaje. Es una combinación de letras y números única para tu grupo.
+                Ingresa el código de 8 dígitos para unirte a la aventura con tus amigos.
               </Text>
-            </View>
-          </View>
 
-          {error ? (
-            <Text style={{ color: Colors.rojoSuave, fontSize: e(13), textAlign: 'center', marginBottom: e(12) }}>{error}</Text>
-          ) : null}
+              <View
+                style={{
+                  width: '100%',
+                  backgroundColor: Colors.celesteAgua,
+                  borderWidth: 1,
+                  borderColor: COLOR_BORDE_CARD,
+                  borderRadius: e(32),
+                  padding: e(24),
+                  gap: e(16),
+                  shadowColor: Colors.azulProfundo,
+                  shadowOpacity: 0.08,
+                  shadowOffset: { width: 0, height: e(4) },
+                  shadowRadius: e(20),
+                  elevation: 3,
+                  marginBottom: e(16),
+                }}>
+                <View style={{ width: '100%', gap: e(8) }}>
+                  <Text
+                    style={{
+                      fontFamily: 'PlusJakartaSans_600SemiBold',
+                      fontSize: e(12),
+                      letterSpacing: e(0.6),
+                      textTransform: 'uppercase',
+                      color: COLOR_TITULO,
+                      paddingHorizontal: e(4),
+                    }}>
+                    Código de invitación
+                  </Text>
+                  <TextInput
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: e(16),
+                      paddingHorizontal: e(16),
+                      paddingVertical: e(14),
+                      fontFamily: 'PlusJakartaSans_700Bold',
+                      fontSize: e(22),
+                      letterSpacing: e(2.2),
+                      textAlign: 'center',
+                      color: Colors.azulProfundo,
+                    }}
+                    placeholder="ABCD1234"
+                    placeholderTextColor="#6B7280"
+                    value={codigo}
+                    onChangeText={(texto) => setCodigo(texto.toUpperCase().slice(0, 8))}
+                    autoCapitalize="characters"
+                    maxLength={8}
+                  />
+                </View>
 
-          <Pressable
-            style={{
-              width: '100%',
-              height: e(56),
-              borderRadius: 999,
-              backgroundColor: Colors.turquesa,
-              flexDirection: 'row',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: e(8),
-              opacity: isLoading ? 0.7 : 1,
-              shadowColor: '#00E9B0',
-              shadowOpacity: 0.2,
-              shadowOffset: { width: 0, height: 10 },
-              shadowRadius: 15,
-              elevation: 6,
-              marginBottom: e(16),
-            }}
-            onPress={handleUnirse}
-            disabled={isLoading}>
-            {isLoading ? (
-              <ActivityIndicator color={Colors.blancoHueso} />
-            ) : (
-              <>
-                <Ionicons name="person-add-outline" size={e(18)} color={Colors.blancoHueso} />
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(16), color: Colors.blancoHueso }}>
-                  Unirse a viaje
+                <View
+                  style={{
+                    width: '100%',
+                    flexDirection: 'row',
+                    gap: e(12),
+                    backgroundColor: 'rgba(255,255,255,0.5)',
+                    borderRadius: e(32),
+                    padding: e(12),
+                  }}>
+                  <Ionicons name="information-circle-outline" size={e(17)} color={COLOR_TITULO} />
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontFamily: 'PlusJakartaSans_400Regular',
+                      fontSize: e(10),
+                      lineHeight: e(16),
+                      color: COLOR_TEXTO_SECUNDARIO,
+                    }}>
+                    Pide el código al administrador del viaje. Es una combinación de letras y números única para tu grupo.
+                  </Text>
+                </View>
+              </View>
+
+              {error ? (
+                <Text style={{ color: Colors.rojoSuave, fontSize: e(13), textAlign: 'center', marginBottom: e(12) }}>{error}</Text>
+              ) : null}
+
+              <Pressable
+                style={{
+                  width: '100%',
+                  height: e(56),
+                  borderRadius: 999,
+                  backgroundColor: Colors.turquesa,
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: e(8),
+                  opacity: isLoading ? 0.7 : 1,
+                  shadowColor: '#00E9B0',
+                  shadowOpacity: 0.2,
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowRadius: 15,
+                  elevation: 6,
+                  marginBottom: e(16),
+                }}
+                onPress={handleUnirse}
+                disabled={isLoading}>
+                {isLoading ? (
+                  <ActivityIndicator color={Colors.blancoHueso} />
+                ) : (
+                  <>
+                    <Ionicons name="person-add-outline" size={e(18)} color={Colors.blancoHueso} />
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(16), color: Colors.blancoHueso }}>
+                      Unirse a viaje
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+
+              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(14), color: '#6B7B72', marginBottom: e(8) }}>
+                ¿No tienes un código?
+              </Text>
+              <Pressable
+                style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(33, 100, 137, 0.3)', paddingBottom: e(2) }}
+                onPress={() => {
+                  cerrarYLimpiar();
+                  onCrearOtro?.();
+                }}>
+                <Text
+                  style={{
+                    fontFamily: 'PlusJakartaSans_600SemiBold',
+                    fontSize: e(12),
+                    letterSpacing: e(0.6),
+                    color: COLOR_TITULO,
+                  }}>
+                  Crear un nuevo viaje
                 </Text>
-              </>
-            )}
-          </Pressable>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text
+                style={{
+                  fontFamily: 'PlusJakartaSans_700Bold',
+                  fontSize: e(20),
+                  color: COLOR_TITULO,
+                  textAlign: 'center',
+                  marginBottom: e(8),
+                }}>
+                ¿Cuál de estos eres tú?
+              </Text>
+              <Text
+                style={{
+                  fontFamily: 'PlusJakartaSans_400Regular',
+                  fontSize: e(13),
+                  color: COLOR_TEXTO_SECUNDARIO,
+                  textAlign: 'center',
+                  marginBottom: e(16),
+                }}>
+                Ya te habían añadido a este viaje con uno de estos nombres provisionales. Elige el tuyo para recuperar tus
+                gastos y actividades.
+              </Text>
 
-          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(14), color: '#6B7B72', marginBottom: e(8) }}>
-            ¿No tienes un código?
-          </Text>
-          <Pressable
-            style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(33, 100, 137, 0.3)', paddingBottom: e(2) }}
-            onPress={() => {
-              cerrarYLimpiar();
-              onCrearOtro?.();
-            }}>
-            <Text
-              style={{
-                fontFamily: 'PlusJakartaSans_600SemiBold',
-                fontSize: e(12),
-                letterSpacing: e(0.6),
-                color: COLOR_TITULO,
-              }}>
-              Crear un nuevo viaje
-            </Text>
-          </Pressable>
+              <View style={{ width: '100%', gap: e(10), marginBottom: e(16) }}>
+                {perfilesFantasma.length === 0 ? (
+                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: e(13), color: COLOR_TEXTO_SECUNDARIO, textAlign: 'center' }}>
+                    No hay perfiles provisionales disponibles.
+                  </Text>
+                ) : (
+                  perfilesFantasma.map((perfil) => (
+                    <Pressable
+                      key={perfil.id_usuario}
+                      onPress={() => elegirPerfilFantasma(perfil.id_usuario)}
+                      disabled={procesandoEleccion}
+                      style={{
+                        width: '100%',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: e(12),
+                        backgroundColor: Colors.celesteAgua,
+                        borderWidth: 1,
+                        borderColor: COLOR_BORDE_CARD,
+                        borderRadius: e(20),
+                        paddingHorizontal: e(16),
+                        paddingVertical: e(14),
+                        opacity: procesandoEleccion ? 0.6 : 1,
+                      }}>
+                      <View
+                        style={{
+                          width: e(34),
+                          height: e(34),
+                          borderRadius: 999,
+                          backgroundColor: '#FFFFFF',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(14), color: Colors.azulProfundo }}>
+                          {perfil.nombre.trim().charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={{ flex: 1, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: e(15), color: COLOR_TITULO }}>
+                        {perfil.nombre}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={e(16)} color={COLOR_TITULO} />
+                    </Pressable>
+                  ))
+                )}
+              </View>
+
+              {error ? (
+                <Text style={{ color: Colors.rojoSuave, fontSize: e(13), textAlign: 'center', marginBottom: e(12) }}>{error}</Text>
+              ) : null}
+
+              <Pressable
+                onPress={unirseComoNuevo}
+                disabled={procesandoEleccion}
+                style={{
+                  width: '100%',
+                  height: e(50),
+                  borderRadius: 999,
+                  backgroundColor: Colors.turquesa,
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: e(8),
+                  opacity: procesandoEleccion ? 0.7 : 1,
+                  marginBottom: e(12),
+                }}>
+                {procesandoEleccion ? (
+                  <ActivityIndicator color={Colors.blancoHueso} />
+                ) : (
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(15), color: Colors.blancoHueso }}>
+                    Ninguno de estos, soy nuevo
+                  </Text>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(33, 100, 137, 0.3)', paddingBottom: e(2) }}
+                onPress={() => {
+                  setPerfilesFantasma(null);
+                  setIdViajeActual(null);
+                  setError('');
+                }}>
+                <Text
+                  style={{
+                    fontFamily: 'PlusJakartaSans_600SemiBold',
+                    fontSize: e(12),
+                    letterSpacing: e(0.6),
+                    color: COLOR_TITULO,
+                  }}>
+                  Volver
+                </Text>
+              </Pressable>
+            </>
+          )}
         </View>
       </View>
     </Modal>

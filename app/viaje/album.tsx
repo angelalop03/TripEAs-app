@@ -11,6 +11,7 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -124,6 +125,11 @@ export default function AlbumScreen() {
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 0.7,
+      // Fuerza la representación "compatible" (JPEG) en iOS: por defecto
+      // ("Automatic") la galería puede devolver el HEIC nativo de la
+      // cámara del iPhone, que no se decodifica en Android ni en la
+      // versión web, dejando la foto subida pero invisible en el álbum.
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (resultado.canceled) return;
 
@@ -152,11 +158,22 @@ export default function AlbumScreen() {
         seleccionados.map(async (archivo) => {
           const formData = new FormData();
           formData.append('id_viaje', id);
-          formData.append('archivo', {
-            uri: archivo.uri,
-            name: archivo.name,
-            type: archivo.mimeType,
-          } as unknown as Blob);
+
+          if (Platform.OS === 'web') {
+            // En web, `archivo.uri` es un blob:/data: URL, no una ruta de
+            // fichero nativa: adjuntar el objeto {uri, name, type} no
+            // adjunta ningún archivo real y la subida falla en silencio.
+            // Hay que resolver ese URI a un Blob real antes de adjuntarlo.
+            const respuestaBlob = await fetch(archivo.uri);
+            const blob = await respuestaBlob.blob();
+            formData.append('archivo', blob, archivo.name);
+          } else {
+            formData.append('archivo', {
+              uri: archivo.uri,
+              name: archivo.name,
+              type: archivo.mimeType,
+            } as unknown as Blob);
+          }
 
           const respuesta = await fetchConToken('/album/subir', { method: 'POST', body: formData });
           if (!respuesta.ok) throw new Error();

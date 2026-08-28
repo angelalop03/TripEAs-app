@@ -212,14 +212,27 @@ export function AnadirGastoModal({ visible, idViaje, participantes, usuarioActua
                   }}>
                   Total
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: e(4) }}>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: e(26), color: '#006878' }}>$</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: e(4), height: e(34) }}>
+                  <Text
+                    style={{
+                      fontFamily: 'PlusJakartaSans_700Bold',
+                      fontSize: e(26),
+                      lineHeight: e(34),
+                      color: '#006878',
+                      includeFontPadding: false,
+                    }}>
+                    €
+                  </Text>
                   <TextInput
                     style={{
                       fontFamily: 'PlusJakartaSans_700Bold',
                       fontSize: e(26),
+                      lineHeight: e(34),
+                      height: e(34),
+                      width: e(84),
+                      flexGrow: 0,
+                      flexShrink: 0,
                       color: monto ? '#006878' : '#67D5ED',
-                      minWidth: e(70),
                       textAlign: 'center',
                       padding: 0,
                       includeFontPadding: false,
