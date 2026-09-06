@@ -75,7 +75,7 @@ export default function HomeScreen() {
   // Anima la apertura/cierre del menú del FAB: el fondo se atenúa, las
   // opciones entran deslizándose hacia arriba, y el icono "+" gira 45° para
   // convertirse visualmente en una "x" (sin cambiar de icono).
-  const menuAnim = useRef(new Animated.Value(0)).current;
+  const [menuAnim] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.timing(menuAnim, {
       toValue: fabExpandido ? 1 : 0,

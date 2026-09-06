@@ -1,8 +1,8 @@
 // Adaptador entre el Tabs navigator de expo-router y BarraInferiorViaje
 // (el componente presentacional que dibuja la barra de verdad). Aquí solo
 // vive la lógica específica de react-navigation (emitir tabPress, navigate).
-import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useLocalSearchParams } from 'expo-router';
+import { BottomTabBarProps } from 'expo-router/tabs';
 
 import { BarraInferiorViaje } from '@/components/BarraInferiorViaje';
 

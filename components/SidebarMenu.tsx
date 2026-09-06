@@ -2,7 +2,7 @@
 // Medidas replicadas del diseño de Figma (sidebar de 256px de ancho).
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Image, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -57,7 +57,7 @@ export function SidebarMenu({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const anchoDrawer = Math.min(anchoPantalla * 0.75, FRAME_WIDTH + 24);
 
-  const traslacion = useRef(new Animated.Value(-anchoDrawer)).current;
+  const [traslacion] = useState(() => new Animated.Value(-anchoDrawer));
 
   useEffect(() => {
     Animated.timing(traslacion, {

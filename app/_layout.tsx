@@ -70,7 +70,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StatusBar style="dark" backgroundColor={Colors.amarillo} />
+      <StatusBar style="dark" />
       <RootNavigator />
     </AuthProvider>
   );

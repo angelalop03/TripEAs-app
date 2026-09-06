@@ -59,7 +59,7 @@ export default function ElegirScreen() {
   const [colorResultado, setColorResultado] = useState(Colors.turquesa);
   const [error, setError] = useState('');
 
-  const rotacion = useRef(new Animated.Value(0)).current;
+  const [rotacion] = useState(() => new Animated.Value(0));
   const rotacionAcumulada = useRef(0);
 
   const cargar = useCallback(
