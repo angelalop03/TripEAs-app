@@ -3,7 +3,9 @@ import { router } from 'expo-router';
 
 import { borrarSesion, obtenerToken } from '@/hooks/useAuth';
 
-export const API_URL = 'http://192.168.0.145:3000/api';
+// En desarrollo local usa la IP de tu red; en builds de EAS se sobreescribe
+// con la URL pública del backend vía la variable EXPO_PUBLIC_API_URL (ver eas.json).
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.0.145:3000/api';
 
 const TIMEOUT_MS = 10000;
 
