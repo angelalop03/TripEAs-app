@@ -7,7 +7,11 @@ import { borrarSesion, obtenerToken } from '@/hooks/useAuth';
 // con la URL pública del backend vía la variable EXPO_PUBLIC_API_URL (ver eas.json).
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.0.145:3000/api';
 
-const TIMEOUT_MS = 10000;
+// Render (plan gratuito) "duerme" el backend tras inactividad: la primera
+// petición tras el sueño puede tardar 30-50s en despertar el servidor antes
+// de responder. 10s cortaba esa primera petición como si fuera un fallo de
+// red, así que damos más margen.
+const TIMEOUT_MS = 45000;
 
 // fetch con timeout: si el backend no responde en TIMEOUT_MS, aborta la
 // petición en vez de dejarla cargando indefinidamente.
