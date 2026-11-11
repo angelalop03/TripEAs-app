@@ -16,7 +16,6 @@
 
 [![Web de TripEAs](https://img.shields.io/badge/🌐_Web_del_proyecto-1E3A8A?style=for-the-badge)](https://angelalop03.github.io/TripEAs-Web/)
 [![Probar en el navegador](https://img.shields.io/badge/📲_Probar_la_app-FCD34D?style=for-the-badge)](https://tripeas.vercel.app)
-[![Descargar APK](https://img.shields.io/badge/🤖_Descargar_APK-3DDC84?style=for-the-badge)](https://expo.dev/artifacts/eas/SH_Nh3YTzG_zo9LCPQM961v6qIKLWCtsa7QNDgB4eek.apk)
 
 <br/>
 
@@ -342,7 +341,7 @@ Escanea el código QR con Expo Go, o pulsa `a` para Android, `i` para iOS o `w` 
 |---|---|
 | 📱 **[TripEAs-app](https://github.com/angelalop03/TripEAs-app)** | Frontend: esta app móvil |
 | 🖥️ **[TripEAs-backend](https://github.com/angelalop03/TripEAs-backend)** | API REST que da servicio a la app |
-| 🌐 **[TripEAs-Web](https://github.com/angelalop03/TripEAs-Web)** | Web de presentación del proyecto, con descarga del APK |
+| 🌐 **[TripEAs-Web](https://github.com/angelalop03/TripEAs-Web)** | Web de presentación del proyecto, con los pasos para instalar la app |
 
 ---
 
