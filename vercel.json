@@ -9,6 +9,12 @@
     { "source": "/viaje/:id", "destination": "/viaje/[id]" },
     { "source": "/viaje/:id/:pagina", "destination": "/viaje/[id]/:pagina" }
   ],
+  "functions": {
+    "api/mantener-activo.js": { "maxDuration": 180 }
+  },
+  "crons": [
+    { "path": "/api/mantener-activo", "schedule": "0 7 * * *" }
+  ],
   "headers": [
     {
       "source": "/sw.js",
