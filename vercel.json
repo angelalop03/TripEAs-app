@@ -6,8 +6,8 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/viaje/:id", "destination": "/viaje/[id]/index.html" },
-    { "source": "/viaje/:id/:pagina", "destination": "/viaje/[id]/:pagina.html" }
+    { "source": "/viaje/:id", "destination": "/viaje/[id]" },
+    { "source": "/viaje/:id/:pagina", "destination": "/viaje/[id]/:pagina" }
   ],
   "headers": [
     {
