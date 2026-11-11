@@ -15,7 +15,7 @@
 <br/>
 
 [![Web de TripEAs](https://img.shields.io/badge/🌐_Web_del_proyecto-1E3A8A?style=for-the-badge)](https://angelalop03.github.io/TripEAs-Web/)
-[![Probar en el navegador](https://img.shields.io/badge/📲_Probar_la_app-FCD34D?style=for-the-badge)](https://tripeas-app.expo.app)
+[![Probar en el navegador](https://img.shields.io/badge/📲_Probar_la_app-FCD34D?style=for-the-badge)](https://tripeas.vercel.app)
 [![Descargar APK](https://img.shields.io/badge/🤖_Descargar_APK-3DDC84?style=for-the-badge)](https://expo.dev/artifacts/eas/SH_Nh3YTzG_zo9LCPQM961v6qIKLWCtsa7QNDgB4eek.apk)
 
 <br/>
